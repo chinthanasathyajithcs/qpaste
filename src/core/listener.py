@@ -19,22 +19,31 @@ class ShortcutHandler:
         state: AppState,
         queue: ClipboardQueue,
         on_update_callback: Optional[Callable[[], None]] = None,
+        on_notify_callback: Optional[Callable[[str, str], None]] = None,
     ) -> None:
         self.state = state
         self.queue = queue
         self.on_update_callback = on_update_callback
+        self.on_notify_callback = on_notify_callback
 
     def handle_f4(self) -> None:
         """Toggles Master Queue Mode ON/OFF."""
         new_state = self.state.toggle()
         if self.on_update_callback:
             self.on_update_callback()
+        if self.on_notify_callback:
+            if new_state:
+                self.on_notify_callback("QPaste : ON", "on")
+            else:
+                self.on_notify_callback("QPaste : OFF", "off")
 
     def handle_shift_f4(self) -> None:
         """Clears all items in the FIFO queue."""
         self.queue.clear()
         if self.on_update_callback:
             self.on_update_callback()
+        if self.on_notify_callback:
+            self.on_notify_callback("QPaste : Cleared", "cleared")
 
     def handle_copy(self) -> None:
         """Intercepts copy event when ACTIVE, reads system clipboard, and enqueues snippet."""
@@ -48,7 +57,7 @@ class ShortcutHandler:
             if self.on_update_callback:
                 self.on_update_callback()
 
-    def handle_paste(self) -> Optional[str]:
+    def handle_paste(self) -> None:
         """Pops oldest item from queue and updates OS clipboard for pasting when ACTIVE."""
         if not self.state.is_active() or self.queue.is_empty():
             return None
@@ -58,7 +67,7 @@ class ShortcutHandler:
             pyperclip.copy(text)
             if self.on_update_callback:
                 self.on_update_callback()
-        return text
+        return None
 
 
 class GlobalKeyboardListener:
