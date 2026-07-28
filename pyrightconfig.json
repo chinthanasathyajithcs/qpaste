@@ -1,0 +1,7 @@
+{
+  "venvPath": "src",
+  "venv": ".venv",
+  "extraPaths": [
+    "src"
+  ]
+}
