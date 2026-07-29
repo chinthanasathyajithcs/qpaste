@@ -18,8 +18,16 @@ def get_startup_command() -> str:
     """Get formatted command string for Windows startup registry key."""
     if is_running_as_exe():
         return f'"{sys.executable}"'
-    script_path = os.path.abspath(sys.argv[0])
-    return f'"{sys.executable}" "{script_path}"'
+    python_exe = sys.executable
+    if python_exe.lower().endswith("python.exe"):
+        pythonw = os.path.join(os.path.dirname(python_exe), "pythonw.exe")
+        if os.path.exists(pythonw):
+            python_exe = pythonw
+    if sys.argv[0] and sys.argv[0].endswith(".py") and sys.argv[0] != "-c":
+        script_path = os.path.abspath(sys.argv[0])
+    else:
+        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "main.py"))
+    return f'"{python_exe}" "{script_path}"'
 
 def enable_startup() -> bool:
     """Add the application to the Windows startup registry."""

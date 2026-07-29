@@ -69,7 +69,6 @@ iscc.exe installer/qpaste_setup.iss
 | **`Shift + F4`** | **Clear Queue** | Empties all items in the FIFO queue and clears undo tracking. |
 | **`Ctrl + C`** | **Sequential Copy** | When `ON`, appends copied text to the back of the FIFO queue. |
 | **`Ctrl + V`** | **Sequential Paste** | When `ON`, pops oldest item (`popleft`) and pastes it. Falls back to OS paste if empty. |
-| **`Ctrl + Z`** | **Smart Undo** | Within 5s of paste, re-enqueues item to the FRONT of the queue. Bypasses `explorer.exe`. |
 
 ---
 

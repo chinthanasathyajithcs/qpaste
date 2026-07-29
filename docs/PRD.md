@@ -24,7 +24,8 @@ It runs 100% silently in the Windows System Tray (Taskbar) without any window fl
 | **Language** | Python 3.11+ | Core application runtime & business logic |
 | **System Tray** | `pystray` + `Pillow` | Native Windows taskbar icon and polished right-click menu |
 | **Notifications** | `tkinter` + `ctypes` (Win32 API) | Native ToolWindow overlay (`WS_EX_TOOLWINDOW` + `WS_EX_NOACTIVATE`) with zero taskbar presence |
-| **Keyboard Listener** | `pynput` | Global OS-level background hotkey interception (`Ctrl+C`, `Ctrl+V`, `Ctrl+Z`, `F4`, `Shift+F4`) |
+| **Keyboard Listener** | `pynput` | Global OS-level background hotkey interception (`Ctrl+V`, `Ctrl+Z`, `F4`, `Shift+F4`) |
+| **Clipboard Monitor** | `pyperclip` + `threading` | Background polling thread to capture OS clipboard changes without keystroke interception |
 | **Clipboard API** | `pyperclip` | Cross-platform OS clipboard read/write interface |
 | **Window Context API** | `ctypes.windll.user32` | Detects active window (`GetForegroundWindow`) to differentiate text editors from File Explorer |
 | **Single-Instance Mutex** | `ctypes.windll.kernel32` / Win32 API | Prevents multiple instances of QPaste running simultaneously |
@@ -43,7 +44,7 @@ It runs 100% silently in the Windows System Tray (Taskbar) without any window fl
    - Toggles **Queue Mode** `ON` or `OFF`.
    - Fires a clean dark charcoal Toast notification (`QPaste : ON` / `QPaste : OFF`) without stealing focus or flashing taskbar icons.
    - When **OFF**: Keyboard shortcuts pass through naturally; QPaste remains idle.
-   - When **ON**: `Ctrl+C`, `Ctrl+V`, and `Ctrl+Z` are handled by QPaste's smart engine.
+   - When **ON**: `Ctrl+V`, and `Ctrl+Z` are handled by QPaste's smart engine. OS clipboard changes are captured automatically.
 
 2. **Clear Queue (`Shift + F4`)**:
    - Clears all items currently stored in the FIFO queue and fires a `QPaste : Cleared` toast notification.
@@ -55,9 +56,9 @@ It runs 100% silently in the Windows System Tray (Taskbar) without any window fl
    - **Start with Windows**: Dynamically writes/removes registry keys to toggle silent launch on Windows boot.
    - **Exit**: Safely terminates the background service and unlocks single-instance mutex.
 
-4. **Copy Action (`Ctrl+C`)**:
-   - Intercepted when Queue Mode is `ON`.
-   - Reads newly copied text via `pyperclip` and appends it to the back of the FIFO queue.
+4. **Copy Action (Any OS Copy)**:
+   - Captured automatically by a background clipboard monitor when Queue Mode is `ON`.
+   - Safely reads newly copied text and appends it to the back of the FIFO queue. Avoids race conditions and arbitrary timings.
 
 5. **Paste Action (`Ctrl+V`)**:
    - Intercepted when Queue Mode is `ON`.

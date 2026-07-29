@@ -241,7 +241,6 @@ class QueueInspectorWindow:
         close_btn.pack(side=tk.RIGHT, padx=(4, 0))
 
         self.refresh()
-        self._auto_refresh_loop()
 
     def refresh(self) -> None:
         """Refreshes listbox items and count label from ClipboardQueue."""
@@ -281,12 +280,6 @@ class QueueInspectorWindow:
                 self._update_preview(items[0])
         except Exception:
             pass
-
-    def _auto_refresh_loop(self) -> None:
-        """Periodic auto-refresh loop running every 500ms."""
-        self.refresh()
-        if self.root:
-            self.root.after(500, self._auto_refresh_loop)
 
     def _on_select(self, event=None) -> None:
         """Fires when user selects an item in the listbox."""

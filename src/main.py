@@ -8,6 +8,8 @@ import sys
 import tkinter as tk
 from PIL import Image
 
+from typing import Optional
+
 # Ensure src directory is on sys.path for robust cross-environment module resolution
 src_dir = os.path.dirname(os.path.abspath(__file__))
 if src_dir not in sys.path:
@@ -17,7 +19,7 @@ import pystray
 from pystray import MenuItem as item
 
 from core.clipboard_queue import ClipboardQueue
-from core.listener import GlobalKeyboardListener, ShortcutHandler
+from core.listener import GlobalKeyboardListener, ShortcutHandler, NativeClipboardListener
 from core.state import AppState
 from core.single_instance import SingleInstance
 from core.startup import is_startup_enabled, enable_startup, disable_startup
@@ -54,13 +56,28 @@ def main() -> None:
     def on_notify(message: str, toast_type: str = "info") -> None:
         toast_overlay.show_toast(message, toast_type)
 
+    # Forward declaration for the update callback
+    inspector: Optional[QueueInspectorWindow] = None
+
+    def on_update():
+        if inspector:
+            try:
+                # Tell tkinter to refresh on the main thread safely
+                inspector.master.after(0, inspector.refresh)
+            except Exception:
+                pass
+
     handler = ShortcutHandler(
         state,
         queue,
         on_notify_callback=on_notify,
+        on_update_callback=on_update,
     )
     listener = GlobalKeyboardListener(handler)
     listener.start()
+    
+    clipboard_listener = NativeClipboardListener(handler)
+    clipboard_listener.start()
 
     # Visual Queue Inspector Window
     inspector = QueueInspectorWindow(queue, master=root)
@@ -82,6 +99,7 @@ def main() -> None:
             enable_startup()
 
     def on_exit(icon, item):
+        clipboard_listener.stop()
         listener.stop()
         single_inst.release()
         if icon_instance:
@@ -123,6 +141,7 @@ def main() -> None:
     except KeyboardInterrupt:
         pass
     finally:
+        clipboard_listener.stop()
         listener.stop()
         single_inst.release()
         os._exit(0)

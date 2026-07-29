@@ -1,11 +1,7 @@
 """
-Comprehensive User Story Acceptance Tests for QPaste.
-Covers all user stories: Toggle Mode Isolation, FIFO Copy/Paste,
-Empty Queue Fallback, Clear Queue, Smart Undo, Mode Transition Safety.
-
-Each test function name maps to an acceptance criterion in user_stories.md.
+User-story integration tests for QPaste.
+Covers: toggle, FIFO order, empty queue fallback, clear, mode transitions, queue operations.
 """
-import time
 import pytest
 from unittest.mock import MagicMock
 from core.clipboard_queue import ClipboardQueue
@@ -30,7 +26,7 @@ def _make_handler(active=True, notify=False, update=False):
         on_notify_callback=(lambda msg, t: notifications.append((msg, t))) if notify else None,
         on_update_callback=(lambda: updates.append(True)) if update else None,
     )
-    handler.CLIPBOARD_READ_DELAY = 0  # Remove delay for deterministic tests
+
     return state, queue, handler, notifications, updates
 
 
@@ -56,10 +52,7 @@ class TestUS1_ToggleModeIsolation:
     def test_copy_ignored_when_off(self, monkeypatch):
         """AC-1.2: Ctrl+C does NOT enqueue when queue mode is OFF."""
         _, queue, handler, _, _ = _make_handler(active=False)
-        monkeypatch.setattr("pyperclip.paste", lambda: "should_be_ignored")
-
-        handler.handle_copy()
-        time.sleep(0.3)
+        handler.on_clipboard_changed("should_be_ignored")
         assert queue.is_empty() is True
 
     def test_paste_ignored_when_off(self, monkeypatch):
@@ -74,16 +67,7 @@ class TestUS1_ToggleModeIsolation:
         assert len(queue) == 1
         assert len(writes) == 0
 
-    def test_undo_ignored_when_off(self, monkeypatch):
-        """AC-1.4: Ctrl+Z does NOT re-enqueue when queue mode is OFF."""
-        _, queue, handler, _, _ = _make_handler(active=False)
-        handler._last_pasted_text = "recent_paste"
-        handler._paste_timestamp = time.time()
-
-        result = handler.handle_undo()
-        assert result is False
-        assert queue.is_empty() is True
-
+    
     def test_toggle_off_preserves_queue(self):
         """AC-1.5: Toggling ON→OFF does NOT destroy existing queue items."""
         state, queue, handler, _, _ = _make_handler(active=True)
@@ -137,8 +121,7 @@ class TestUS2_SequentialFIFO:
         _, queue, handler, _, _ = _make_handler(active=True)
 
         for text in ["Alpha", "Beta", "Gamma"]:
-            monkeypatch.setattr("pyperclip.paste", lambda t=text: t)
-            handler._read_and_enqueue()
+            handler.on_clipboard_changed(text)
 
         items = queue.get_items()
         assert items == ["Alpha", "Beta", "Gamma"]
@@ -169,8 +152,7 @@ class TestUS2_SequentialFIFO:
 
         # Copy phase
         for text in ["Alpha", "Beta", "Gamma"]:
-            clipboard[0] = text
-            handler._read_and_enqueue()
+            handler.on_clipboard_changed(text)
 
         # Paste phase
         handler.handle_paste()
@@ -186,9 +168,7 @@ class TestUS2_SequentialFIFO:
         _, queue, handler, _, _ = _make_handler(active=True)
 
         code_block = "def greet(name):\n    print(f'Hello {name}')\n    return True\n"
-        monkeypatch.setattr("pyperclip.paste", lambda: code_block)
-
-        handler._read_and_enqueue()
+        handler.on_clipboard_changed(code_block)
         assert queue.get_items()[0] == code_block
 
         written = []
@@ -200,8 +180,7 @@ class TestUS2_SequentialFIFO:
         """AC-2.5: Single-line short text works correctly."""
         _, queue, handler, _, _ = _make_handler(active=True)
 
-        monkeypatch.setattr("pyperclip.paste", lambda: "npm install express")
-        handler._read_and_enqueue()
+        handler.on_clipboard_changed("npm install express")
 
         written = []
         monkeypatch.setattr("pyperclip.copy", lambda t: written.append(t))
@@ -213,8 +192,7 @@ class TestUS2_SequentialFIFO:
         _, queue, handler, _, _ = _make_handler(active=True)
 
         special = "Hello 🌍\tWorld\r\nLine2\nLine3\t\t🚀"
-        monkeypatch.setattr("pyperclip.paste", lambda: special)
-        handler._read_and_enqueue()
+        handler.on_clipboard_changed(special)
 
         written = []
         monkeypatch.setattr("pyperclip.copy", lambda t: written.append(t))
@@ -225,8 +203,7 @@ class TestUS2_SequentialFIFO:
         """AC-2.7: Empty clipboard content is silently ignored."""
         _, queue, handler, _, _ = _make_handler(active=True)
 
-        monkeypatch.setattr("pyperclip.paste", lambda: "")
-        handler._read_and_enqueue()
+        handler.on_clipboard_changed("")
         assert queue.is_empty()
 
 
@@ -288,14 +265,6 @@ class TestUS4_ClearQueue:
         assert queue.is_empty()
         assert len(queue) == 0
 
-    def test_clear_resets_undo_tracking(self):
-        """AC-4.2: Shift+F4 resets undo tracking (no phantom undo)."""
-        _, _, handler, _, _ = _make_handler(active=True)
-        handler._last_pasted_text = "was_just_pasted"
-        handler._paste_timestamp = time.time()
-
-        handler.handle_shift_f4()
-        assert handler._last_pasted_text is None
 
     def test_clear_fires_toast(self):
         """AC-4.3: A 'QPaste : Cleared' toast fires."""
@@ -303,86 +272,6 @@ class TestUS4_ClearQueue:
 
         handler.handle_shift_f4()
         assert notifs[-1] == ("QPaste : Cleared", "cleared")
-
-
-# ===========================================================================
-# US-5: Smart Ctrl+Z Undo Paste
-# ===========================================================================
-
-class TestUS5_SmartUndo:
-
-    def test_undo_reenqueues_to_front(self, monkeypatch):
-        """AC-5.1: Undo within 5s re-enqueues text to the FRONT of the queue."""
-        _, queue, handler, _, _ = _make_handler(active=True)
-        queue.push("Remaining Item")
-        monkeypatch.setattr("pyperclip.copy", lambda t: None)
-        monkeypatch.setattr(ShortcutHandler, "_is_explorer_active", staticmethod(lambda: False))
-
-        handler._last_pasted_text = "Just Pasted"
-        handler._paste_timestamp = time.time()
-
-        result = handler.handle_undo()
-        assert result is True
-
-        items = queue.get_items()
-        assert items[0] == "Just Pasted"  # Re-enqueued at FRONT
-        assert items[1] == "Remaining Item"
-
-    def test_undo_expired_passes_through(self, monkeypatch):
-        """AC-5.2: Undo after 5s window expires passes through to native undo."""
-        _, queue, handler, _, _ = _make_handler(active=True)
-        handler.UNDO_WINDOW_SECONDS = 1.0
-        monkeypatch.setattr(ShortcutHandler, "_is_explorer_active", staticmethod(lambda: False))
-
-        handler._last_pasted_text = "Old Paste"
-        handler._paste_timestamp = time.time() - 2.0  # Beyond 1s window
-
-        result = handler.handle_undo()
-        assert result is False
-        assert queue.is_empty()  # NOT re-enqueued
-
-    def test_undo_only_once_per_paste(self, monkeypatch):
-        """AC-5.3: Undo can only be done once per paste (no double re-enqueue)."""
-        _, queue, handler, _, _ = _make_handler(active=True)
-        monkeypatch.setattr("pyperclip.copy", lambda t: None)
-        monkeypatch.setattr(ShortcutHandler, "_is_explorer_active", staticmethod(lambda: False))
-
-        handler._last_pasted_text = "Undo Me"
-        handler._paste_timestamp = time.time()
-
-        # First undo succeeds
-        result1 = handler.handle_undo()
-        assert result1 is True
-        assert len(queue) == 1
-
-        # Second undo should fail (last_pasted_text was cleared)
-        result2 = handler.handle_undo()
-        assert result2 is False
-        assert len(queue) == 1  # No duplicate
-
-    def test_undo_bypassed_in_explorer(self, monkeypatch):
-        """AC-5.4: Undo in File Explorer bypasses QPaste (native undo works)."""
-        _, queue, handler, _, _ = _make_handler(active=True)
-        monkeypatch.setattr(ShortcutHandler, "_is_explorer_active", staticmethod(lambda: True))
-
-        handler._last_pasted_text = "Explorer Paste"
-        handler._paste_timestamp = time.time()
-
-        result = handler.handle_undo()
-        assert result is False
-        assert queue.is_empty()  # NOT re-enqueued
-
-    def test_undo_fires_toast(self, monkeypatch):
-        """AC-5.5: Undo fires a 'QPaste : Undo' toast."""
-        _, _, handler, notifs, _ = _make_handler(active=True, notify=True)
-        monkeypatch.setattr("pyperclip.copy", lambda t: None)
-        monkeypatch.setattr(ShortcutHandler, "_is_explorer_active", staticmethod(lambda: False))
-
-        handler._last_pasted_text = "Toast Test"
-        handler._paste_timestamp = time.time()
-
-        handler.handle_undo()
-        assert notifs[-1] == ("QPaste : Undo", "info")
 
 
 # ===========================================================================
@@ -399,8 +288,7 @@ class TestUS6_ModeTransitionSafety:
         handler.handle_f4()  # Turn OFF
         assert state.is_active() is False
 
-        handler.handle_copy()
-        time.sleep(0.3)
+        handler.on_clipboard_changed("while_off")
         assert queue.is_empty()
 
     def test_on_after_os_copy_drains_queue(self, monkeypatch):
@@ -548,33 +436,6 @@ class TestUS7_QueueOperations:
 
 class TestIntegration_FullWorkflows:
 
-    def test_copy_paste_undo_repaste(self, monkeypatch):
-        """Workflow: copy → paste → undo → paste again (same item re-appears)."""
-        _, queue, handler, _, _ = _make_handler(active=True)
-        writes = []
-        monkeypatch.setattr("pyperclip.paste", lambda: "Snippet")
-        monkeypatch.setattr("pyperclip.copy", lambda t: writes.append(t))
-        monkeypatch.setattr(ShortcutHandler, "_is_explorer_active", staticmethod(lambda: False))
-
-        # Copy
-        handler._read_and_enqueue()
-        assert len(queue) == 1
-
-        # Paste
-        handler.handle_paste()
-        assert writes[-1] == "Snippet"
-        assert queue.is_empty()
-
-        # Undo — re-enqueue
-        handler.handle_undo()
-        assert len(queue) == 1
-        assert queue.get_items()[0] == "Snippet"
-
-        # Paste again — same item
-        handler.handle_paste()
-        assert writes[-1] == "Snippet"
-        assert queue.is_empty()
-
     def test_mixed_toggle_copy_paste_flow(self, monkeypatch):
         """Workflow: ON → copy 2 → OFF → ON → paste 2 in FIFO order."""
         state, queue, handler, _, _ = _make_handler(active=True)
@@ -582,10 +443,8 @@ class TestIntegration_FullWorkflows:
         monkeypatch.setattr("pyperclip.copy", lambda t: writes.append(t))
 
         # ON: copy 2 items
-        monkeypatch.setattr("pyperclip.paste", lambda: "Item1")
-        handler._read_and_enqueue()
-        monkeypatch.setattr("pyperclip.paste", lambda: "Item2")
-        handler._read_and_enqueue()
+        handler.on_clipboard_changed("Item1")
+        handler.on_clipboard_changed("Item2")
         assert len(queue) == 2
 
         # OFF
@@ -611,16 +470,14 @@ class TestIntegration_FullWorkflows:
 
         # Copy 3 items
         for text in ["Old1", "Old2", "Old3"]:
-            monkeypatch.setattr("pyperclip.paste", lambda t=text: t)
-            handler._read_and_enqueue()
+            handler.on_clipboard_changed(text)
 
         # Clear queue
         handler.handle_shift_f4()
         assert queue.is_empty()
 
         # Copy 1 new item
-        monkeypatch.setattr("pyperclip.paste", lambda: "Fresh")
-        handler._read_and_enqueue()
+        handler.on_clipboard_changed("Fresh")
 
         # Paste should return only the new item
         handler.handle_paste()
