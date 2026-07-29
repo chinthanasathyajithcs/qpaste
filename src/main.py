@@ -5,7 +5,7 @@ System Tray icon, Native Toast Overlay, and Visual Queue Inspector GUI.
 """
 import os
 import sys
-import threading
+import tkinter as tk
 from PIL import Image
 
 # Ensure src directory is on sys.path for robust cross-environment module resolution
@@ -39,14 +39,17 @@ def main() -> None:
         print("[QPaste] Another instance is already running. Exiting.")
         sys.exit(0)
 
+    # Master Tk Root for Main Thread Event Loop
+    root = tk.Tk()
+    root.withdraw()
+
     state = AppState(initial_active=True)
     queue = ClipboardQueue()
     icon_instance = []
 
     # Native ToolWindow Toast Overlay
-    toast_overlay = NativeToastOverlay()
-    toast_thread = threading.Thread(target=toast_overlay.start, daemon=True)
-    toast_thread.start()
+    toast_overlay = NativeToastOverlay(master=root)
+    toast_overlay.start()
 
     def on_notify(message: str, toast_type: str = "info") -> None:
         toast_overlay.show_toast(message, toast_type)
@@ -60,7 +63,7 @@ def main() -> None:
     listener.start()
 
     # Visual Queue Inspector Window
-    inspector = QueueInspectorWindow(queue)
+    inspector = QueueInspectorWindow(queue, master=root)
 
     # --- System Tray Menu Handlers ---
     def on_toggle_queue(icon, item):
@@ -83,6 +86,10 @@ def main() -> None:
         single_inst.release()
         if icon_instance:
             icon_instance[0].stop()
+        try:
+            root.quit()
+        except Exception:
+            pass
         os._exit(0)
 
     # Prepare Tray Icon
@@ -106,10 +113,13 @@ def main() -> None:
     tray_icon = pystray.Icon("QPaste", image, "QPaste", menu)
     icon_instance.append(tray_icon)
 
+    # Launch System Tray Icon (Detached Background Thread)
+    tray_icon.run_detached()
+
     print("[QPaste] Application running silently in System Tray.")
 
     try:
-        tray_icon.run()
+        root.mainloop()
     except KeyboardInterrupt:
         pass
     finally:

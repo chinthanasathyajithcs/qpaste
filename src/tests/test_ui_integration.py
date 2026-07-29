@@ -12,10 +12,10 @@ from ui.toast import NativeToastOverlay
 
 def test_native_toast_initialization():
     toast = NativeToastOverlay()
-    assert toast.root is None
+    assert toast.window is None
+    assert toast.master is None
     assert toast.frame is None
     assert toast.label is None
-    assert not toast._initialized.is_set()
 
 
 def test_shortcut_handler_triggers_notification_callback():

@@ -14,9 +14,15 @@ def get_executable_path() -> str:
         return sys.executable
     return os.path.abspath(sys.argv[0])
 
+def get_startup_command() -> str:
+    """Get formatted command string for Windows startup registry key."""
+    if is_running_as_exe():
+        return f'"{sys.executable}"'
+    script_path = os.path.abspath(sys.argv[0])
+    return f'"{sys.executable}" "{script_path}"'
+
 def enable_startup() -> bool:
     """Add the application to the Windows startup registry."""
-    
     if sys.platform != "win32":
         return False
     try:
@@ -26,8 +32,8 @@ def enable_startup() -> bool:
             0,
             winreg.KEY_SET_VALUE
         )
-        exe_path = get_executable_path()
-        winreg.SetValueEx(key, APP_NAME, 0, winreg.REG_SZ, f'"{exe_path}"')
+        cmd = get_startup_command()
+        winreg.SetValueEx(key, APP_NAME, 0, winreg.REG_SZ, cmd)
         winreg.CloseKey(key)
         return True
     except Exception as e:

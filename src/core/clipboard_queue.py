@@ -50,6 +50,24 @@ class ClipboardQueue:
                 return None
             return self._queue.popleft()
 
+    def get_item(self, index: int) -> Optional[str]:
+        """Returns the item string at the specified index without removing it, or None if invalid."""
+        with self._lock:
+            if 0 <= index < len(self._queue):
+                return self._queue[index]
+            return None
+
+    def promote_to_front(self, index: int) -> bool:
+        """Moves the item at index directly to position 0 (the front of the queue). Returns True if successful."""
+        with self._lock:
+            if 0 <= index < len(self._queue):
+                items = list(self._queue)
+                item = items.pop(index)
+                items.insert(0, item)
+                self._queue = deque(items)
+                return True
+            return False
+
     def remove_at(self, index: int) -> Optional[str]:
         """Removes and returns the item at the specified index, or None if invalid."""
         with self._lock:
