@@ -84,15 +84,24 @@ class NativeToastOverlay:
             bg_color = "#181B24"        # Rich Dark Charcoal
             border_color = "#2D323E"    # Subtle Dark Border
 
+            w, h = 220, 48
+            font_style = ("Segoe UI", 11, "bold")
+            timeout = 2000
+
             if toast_type == "on":
                 fg_color = "#94A3B8"    # Clean Sky Cyan
             elif toast_type == "off":
                 fg_color = "#94A3B8"    # Muted Slate
+            elif toast_type == "copy_count":
+                fg_color = "#94A3B8"
+                w, h = 70, 50
+                font_style = ("Segoe UI", 16, "bold")
+                timeout = 800
             else:  # "cleared"
                 fg_color = "#94A3B8"    # Pure Pearl White
 
             self.frame.configure(bg=bg_color, highlightbackground=border_color)
-            self.label.configure(text=text, fg=fg_color, bg=bg_color)
+            self.label.configure(text=text, fg=fg_color, bg=bg_color, font=font_style)
 
             # Calculate bottom-right position dynamically
             try:
@@ -102,15 +111,14 @@ class NativeToastOverlay:
             except Exception:
                 sw, sh = 1920, 1080
 
-            w, h = 220, 48
             x = max(0, sw - w - 30)
             y = max(0, sh - h - 70)
 
             self.window.geometry(f"{w}x{h}+{x}+{y}")
             self.window.deiconify()
 
-            # Auto-hide after 2 seconds
-            self._hide_timer_id = self.window.after(2000, self.window.withdraw)
+            # Auto-hide after timeout
+            self._hide_timer_id = self.window.after(timeout, self.window.withdraw)
 
         if self.master:
             self.master.after(0, _update_ui)

@@ -233,6 +233,23 @@ def test_clear_fires_notification_callback():
     assert notifications[-1] == ("QPaste : Cleared", "cleared")
 
 
+def test_copy_fires_notification_callback():
+    """Verify copying an item fires the notification callback with the queue length."""
+    state = AppState(initial_active=True)
+    queue = ClipboardQueue()
+    notifications = []
+    handler = ShortcutHandler(
+        state=state, queue=queue,
+        on_notify_callback=lambda msg, t: notifications.append((msg, t))
+    )
+
+    handler.on_clipboard_changed("First Copy")
+    assert notifications[-1] == ("1", "copy_count")
+
+    handler.on_clipboard_changed("Second Copy")
+    assert notifications[-1] == ("2", "copy_count")
+
+
 # ---------------------------------------------------------------------------
 # Extensive TDD Test Cases for LIFO/FIFO and Hook Races
 # ---------------------------------------------------------------------------

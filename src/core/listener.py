@@ -67,8 +67,13 @@ class ShortcutHandler:
         if text:
             with self._copy_lock:
                 self.queue.push(text)
+                q_len = len(self.queue)
+                
             if self.on_update_callback:
                 self.on_update_callback()
+                
+            if self.on_notify_callback:
+                self.on_notify_callback(str(q_len), "copy_count")
 
     def handle_paste(self) -> bool:
         """

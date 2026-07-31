@@ -47,10 +47,12 @@ src\.venv\Scripts\python.exe -m pytest src/tests/test_user_stories.py -v
 
 ## 3. Building & Packaging Releases
 
+> **IMPORTANT**: You MUST rebuild the executable using PyInstaller after EVERY implementation or code change so the user can run the latest version.
+
 ### Step 1: Build PyInstaller Executable
-Compiles `src/main.py` into a single `--noconsole` binary in `dist/qpaste.exe`:
+First, ensure any running `qpaste` processes are killed. Then, compile `src/main.py` into a single `--noconsole` binary in `dist/qpaste.exe`:
 ```powershell
-src\.venv\Scripts\python.exe -m PyInstaller qpaste.spec
+Get-Process qpaste -ErrorAction SilentlyContinue | Stop-Process -Force; src\.venv\Scripts\python.exe -m PyInstaller qpaste.spec
 ```
 
 ### Step 2: Build Inno Setup Installer
