@@ -121,7 +121,7 @@ def main() -> None:
     menu = pystray.Menu(
         item("Toggle Queue Mode (F4)", on_toggle_queue),
         item("Clear Queue (Shift+F4)", on_clear_queue),
-        item("Open Queue Inspector", on_open_inspector),
+        item("Open Queue Inspector", on_open_inspector, default=True),
         pystray.Menu.SEPARATOR,
         item("Start with Windows", on_toggle_startup, checked=lambda item: is_startup_enabled()),
         pystray.Menu.SEPARATOR,

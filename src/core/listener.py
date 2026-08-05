@@ -309,4 +309,7 @@ class NativeClipboardListener:
                 self.handler.on_clipboard_changed(text)
             except Exception:
                 pass
-        return ctypes.windll.user32.DefWindowProcW(hwnd, msg, wparam, lparam)
+        user32 = ctypes.windll.user32
+        user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+        user32.DefWindowProcW.restype = wintypes.LPARAM
+        return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
