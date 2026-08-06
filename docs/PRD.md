@@ -13,7 +13,7 @@
 
 QPaste solves this by introducing a **Sequential FIFO (First-In, First-Out) Clipboard Manager**. Users can copy multiple text items sequentially using standard operating system shortcuts (`Ctrl+C`), and paste them in the exact chronological order they were collected (`Ctrl+V`).
 
-It runs 100% silently in the Windows System Tray (Taskbar) without any window flashes on launch, providing native hotkey toggles, smart `Ctrl+Z` undo-paste protection, clean non-focus-stealing toast notifications, a visual Queue Inspector, and distribution options via both CLI portable binaries and GUI Setup installers.
+It runs 100% silently in the Windows System Tray (Taskbar) without any window flashes on launch, providing native hotkey toggles, clean non-focus-stealing toast notifications, a visual Queue Inspector, and distribution options via both CLI portable binaries and GUI Setup installers.
 
 ---
 
@@ -24,10 +24,9 @@ It runs 100% silently in the Windows System Tray (Taskbar) without any window fl
 | **Language** | Python 3.11+ | Core application runtime & business logic |
 | **System Tray** | `pystray` + `Pillow` | Native Windows taskbar icon and polished right-click menu |
 | **Notifications** | `tkinter` + `ctypes` (Win32 API) | Native ToolWindow overlay (`WS_EX_TOOLWINDOW` + `WS_EX_NOACTIVATE`) with zero taskbar presence |
-| **Keyboard Listener** | `pynput` | Global OS-level background hotkey interception (`Ctrl+V`, `Ctrl+Z`, `F4`, `Shift+F4`) |
+| **Keyboard Listener** | `pynput` | Global OS-level background hotkey interception (`Ctrl+V`, `F4`, `Shift+F4`) |
 | **Clipboard Monitor** | `pyperclip` + `threading` | Background polling thread to capture OS clipboard changes without keystroke interception |
 | **Clipboard API** | `pyperclip` | Cross-platform OS clipboard read/write interface |
-| **Window Context API** | `ctypes.windll.user32` | Detects active window (`GetForegroundWindow`) to differentiate text editors from File Explorer |
 | **Single-Instance Mutex** | `ctypes.windll.kernel32` / Win32 API | Prevents multiple instances of QPaste running simultaneously |
 | **Auto-Start Engine** | `winreg` (Windows Registry) | Manages automatic launch on Windows boot via `HKCU\...\Run` |
 | **GUI Queue Inspector** | `tkinter` (Native Dark Theme) | Minimal, lightweight window for viewing, deleting individual snippets, and clearing the queue |
@@ -44,7 +43,7 @@ It runs 100% silently in the Windows System Tray (Taskbar) without any window fl
    - Toggles **Queue Mode** `ON` or `OFF`.
    - Fires a clean dark charcoal Toast notification (`QPaste : ON` / `QPaste : OFF`) without stealing focus or flashing taskbar icons.
    - When **OFF**: Keyboard shortcuts pass through naturally; QPaste remains idle.
-   - When **ON**: `Ctrl+V`, and `Ctrl+Z` are handled by QPaste's smart engine. OS clipboard changes are captured automatically.
+   - When **ON**: `Ctrl+V` is handled by QPaste's FIFO engine. OS clipboard changes are captured automatically.
 
 2. **Clear Queue (`Shift + F4`)**:
    - Clears all items currently stored in the FIFO queue and fires a `QPaste : Cleared` toast notification.
@@ -67,13 +66,6 @@ It runs 100% silently in the Windows System Tray (Taskbar) without any window fl
    - If Queue has items: Pops the oldest item (`pop(0)`), updates OS clipboard, and pastes it.
    - If Queue is empty: Falls back to normal OS clipboard behavior.
 
-6. **Undo Paste Action (`Ctrl+Z` Re-enqueue)**:
-   - Intercepted when Queue Mode is `ON` and a FIFO paste was recently performed.
-   - **Smart Context Awareness**:
-     - Checks active window using `GetForegroundWindow()`.
-     - **If Text Editor / Input Field**: Re-enqueues the pasted item back to the front of the queue (`pushleft()`) so it can be re-pasted.
-     - **If Windows File Explorer (`explorer.exe`) or File Operation**: Passes `Ctrl+Z` through to native OS undo without interfering with system file management.
-
 ---
 
 ## 4. Detailed Functional Requirements
@@ -83,10 +75,8 @@ It runs 100% silently in the Windows System Tray (Taskbar) without any window fl
 - `REQ-1.2`: Right-clicking the tray icon provides a polished menu for Queue Toggle, Queue Clear, Inspector launch, Windows startup configuration, and Exit.
 - `REQ-1.3`: The app must automatically update its tray menu checkmark state when startup status changes.
 
-### 4.2 Queue Management & Smart Undo Engine
+### 4.2 Queue Management Engine
 - `REQ-2.1`: Maintain a thread-safe list/deque of text strings.
-- `REQ-2.2`: Provide `Ctrl+Z` un-paste support in text fields to push recently popped items back into the queue.
-- `REQ-2.3`: Smart Window Context filtering to ensure `Ctrl+Z` in File Explorer (`explorer.exe`) executes standard Windows file undo without re-enqueuing text.
 - `REQ-2.4`: **Auto-Clear Queue Timer**:
   - Automatically expire and purge clipboard items after a user-specified duration (e.g., 30s, 1m, 5m, 15m, 30m, 1h).
   - Feature must be optional and toggleable (Enabled/Disabled).
@@ -150,7 +140,6 @@ It runs 100% silently in the Windows System Tray (Taskbar) without any window fl
 
 | Scenario | Risk | Mitigation Strategy |
 | :--- | :--- | :--- |
-| **`Ctrl+Z` in Windows File Explorer** | Accidental text re-enqueue instead of restoring deleted folder | Inspect active window process name (`GetForegroundWindow`); bypass QPaste hook if active window is `explorer.exe` |
 | **Empty Queue on `Ctrl+V`** | App crash or lost paste | Passthrough to native OS clipboard paste |
 | **Multiple App Launches** | Duplicate hook interception & race conditions | Acquire Win32 Named Mutex `Local\QPaste_SingleInstance_Mutex`; abort secondary process gracefully |
 | **Clipboard Access Race Condition** | "Access Denied" error if an app locks the clipboard | Implement a 5-attempt retry loop with 50ms intervals in `pyperclip.paste()` |
