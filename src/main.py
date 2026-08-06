@@ -18,7 +18,11 @@ if src_dir not in sys.path:
 import pystray
 from pystray import MenuItem as item
 
+import time
+import threading
+
 from core.clipboard_queue import ClipboardQueue
+from core.config import AppConfig
 from core.listener import GlobalKeyboardListener, ShortcutHandler, NativeClipboardListener
 from core.state import AppState
 from core.single_instance import SingleInstance
@@ -41,10 +45,33 @@ def main() -> None:
         print("[QPaste] Another instance is already running. Exiting.")
         sys.exit(0)
 
+    # Set Windows AppUserModelID so Taskbar uses our custom app icon
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("QPaste.ClipboardManager.1.0")
+        except Exception:
+            pass
+
     # Master Tk Root for Main Thread Event Loop
     root = tk.Tk()
     root.withdraw()
 
+    icon_ico = get_asset_path("icon.ico")
+    icon_png = get_asset_path("icon.png")
+    if os.path.exists(icon_ico):
+        try:
+            root.iconbitmap(icon_ico)
+        except Exception:
+            pass
+    elif os.path.exists(icon_png):
+        try:
+            img = tk.PhotoImage(file=icon_png)
+            root.iconphoto(True, img)
+        except Exception:
+            pass
+
+    config = AppConfig()
     state = AppState(initial_active=True)
     queue = ClipboardQueue()
     icon_instance = []
@@ -80,7 +107,24 @@ def main() -> None:
     clipboard_listener.start()
 
     # Visual Queue Inspector Window
-    inspector = QueueInspectorWindow(queue, master=root)
+    inspector = QueueInspectorWindow(queue, config=config, master=root)
+
+    # Background Queue Expiration Manager Thread
+    def run_expiration_manager():
+        while True:
+            time.sleep(1)
+            try:
+                if config.get("auto_clear_enabled", False):
+                    timeout = config.get("auto_clear_seconds", 60)
+                    purged_count = queue.purge_expired(timeout)
+                    if purged_count > 0:
+                        on_notify("QPaste : Cleared", "cleared")
+                        on_update()
+            except Exception:
+                pass
+
+    exp_thread = threading.Thread(target=run_expiration_manager, daemon=True)
+    exp_thread.start()
 
     # --- System Tray Menu Handlers ---
     def on_toggle_queue(icon, item):

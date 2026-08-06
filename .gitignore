@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual Environments
+.venv/
+src/.venv/
+venv/
+ENV/
+
+# PyInstaller & Build artifacts
+build/
+dist/
+*.spec.bak
+
+# Inno Setup output
+installer/Output/
+
+# Documentation scratch planning files
+docs/plan.md
+
+# IDE / OS specific files
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

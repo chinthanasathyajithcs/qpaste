@@ -87,7 +87,12 @@ It runs 100% silently in the Windows System Tray (Taskbar) without any window fl
 - `REQ-2.1`: Maintain a thread-safe list/deque of text strings.
 - `REQ-2.2`: Provide `Ctrl+Z` un-paste support in text fields to push recently popped items back into the queue.
 - `REQ-2.3`: Smart Window Context filtering to ensure `Ctrl+Z` in File Explorer (`explorer.exe`) executes standard Windows file undo without re-enqueuing text.
-- `REQ-2.4`: **Auto-Clear Timer**: Automatically clear the queue after a configurable amount of time passes to enhance privacy and memory management.this is just an optional feature. 
+- `REQ-2.4`: **Auto-Clear Queue Timer**:
+  - Automatically expire and purge clipboard items after a user-specified duration (e.g., 30s, 1m, 5m, 15m, 30m, 1h).
+  - Feature must be optional and toggleable (Enabled/Disabled).
+  - Background expiration process must run safely without blocking UI or hotkey event threads.
+  - Reset or handle timestamping for queue items so stale items are automatically removed upon timeout.
+- `REQ-2.5`: **Persistent Settings**: Store auto-clear preferences (enabled status and timeout duration) persistently in a lightweight JSON configuration file (`config.json`).
 
 ### 4.3 Native Toast Overlay
 - `REQ-3.1`: State notifications display at the bottom-right corner of the screen for 2 seconds (or 800ms for quick copy count badges).
@@ -95,12 +100,16 @@ It runs 100% silently in the Windows System Tray (Taskbar) without any window fl
 - `REQ-3.3`: Must use `WS_EX_NOACTIVATE` to prevent stealing window/keyboard focus from active applications.
 - `REQ-3.4`: Uses a clean, minimal dark charcoal aesthetic with subtle dark borders.
 
-### 4.4 Visual Queue Inspector (Minimal GUI HUD)
+### 4.4 Visual Queue Inspector (GUI HUD & Settings Interface)
 - `REQ-4.1`: Accessible via System Tray right-click menu ("Open Queue Inspector") or by double-clicking the system tray icon.
-- `REQ-4.2`: Displays live queued text items in a compact, single-panel native GUI window (400x300) matching the dark charcoal aesthetic, without split panes or detailed preview text boxes.
-- `REQ-4.3`: Minimal Functionality: Provides only two essential action buttons—`Delete` (removes selected snippet) and `Clear All` (empties the queue). Manual item reordering (Up/Down/Promote) is removed to keep the interface simple and uncluttered.
-- `REQ-4.4`: Fast & Intuitive Interactions: Double-clicking an item in the list or pressing the `Delete` key deletes the selected snippet.
+- `REQ-4.2`: Displays live queued text items in a native GUI window matching the dark charcoal aesthetic.
+- `REQ-4.3`: Minimal Functionality: Provides action buttons (`Delete` item, `Clear All` queue).
+- `REQ-4.4`: Fast & Intuitive Interactions: Double-clicking an item in the list or pressing `Delete` deletes the selected snippet.
 - `REQ-4.5`: Focuses non-disruptively; closing or hiding the window retains background QPaste clipboard monitoring.
+- `REQ-4.6`: **Settings Tab / View**: Incorporate a dedicated **Settings** tab within the Queue Inspector GUI:
+  - Toggle switch or checkbox for **Enable Auto-Clear Queue**.
+  - Dropdown selector / entry field for **Auto-Clear Duration** (e.g., 30s, 1 minute, 5 minutes, 15 minutes, 30 minutes, 1 hour).
+  - Immediate application and persistence of setting updates.
 
 ### 4.5 Windows Bootup Auto-Start Mechanism
 - `REQ-5.1`: **Registry Autostart Key**: Manages entry under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` with key name `QPaste`.
@@ -129,6 +138,11 @@ It runs 100% silently in the Windows System Tray (Taskbar) without any window fl
   - Creates Start Menu shortcut and optional Desktop shortcut.
   - Registers HKCU Run key if *"Start QPaste with Windows"* task is checked.
   - Clean uninstaller removing files, shortcut icons, and registry keys.
+
+### 5.3 Source Control & Release Workflow
+- **Git Tracking Scope**: Source files (`src/`), branding assets (`assets/`), build specs, and documentation are tracked in Git.
+- **Ignored Build Output**: Build artifacts (`build/`), distribution binaries (`dist/`), and setup output (`installer/Output/`) are excluded via `.gitignore` to maintain lightweight commits (< 1 MB) and instantaneous `git push` syncs.
+- **GitHub Release Publishing**: Executable releases (`qpaste.exe` and `QPaste_Setup_v1.0.0.exe`) are generated via PyInstaller and Inno Setup, then attached directly to tagged GitHub Releases.
 
 ---
 

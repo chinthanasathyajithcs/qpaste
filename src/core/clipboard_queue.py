@@ -3,17 +3,18 @@ Thread-safe First-In, First-Out (FIFO) Clipboard Queue engine for QPaste.
 """
 from collections import deque
 import threading
-from typing import List, Optional
+import time
+from typing import List, Optional, Tuple
 
 DEFAULT_MAX_QUEUE_SIZE = 25
 
 
 class ClipboardQueue:
-    """Thread-safe FIFO Queue managing sequential copied text items with max size capacity."""
+    """Thread-safe FIFO Queue managing sequential copied text items with timestamps and max capacity."""
 
     def __init__(self, max_size: int = DEFAULT_MAX_QUEUE_SIZE) -> None:
         self.max_size: int = max_size
-        self._queue: deque[str] = deque()
+        self._queue: deque[Tuple[str, float]] = deque()
         self._lock: threading.Lock = threading.Lock()
 
     def push(self, text: str) -> None:
@@ -24,7 +25,7 @@ class ClipboardQueue:
         if not text:
             return
         with self._lock:
-            self._queue.append(text)
+            self._queue.append((text, time.time()))
             while len(self._queue) > self.max_size:
                 self._queue.popleft()
 
@@ -36,7 +37,7 @@ class ClipboardQueue:
         if not text:
             return
         with self._lock:
-            self._queue.appendleft(text)
+            self._queue.appendleft((text, time.time()))
             while len(self._queue) > self.max_size:
                 self._queue.pop()
 
@@ -48,13 +49,14 @@ class ClipboardQueue:
         with self._lock:
             if not self._queue:
                 return None
-            return self._queue.popleft()
+            item, _ = self._queue.popleft()
+            return item
 
     def get_item(self, index: int) -> Optional[str]:
         """Returns the item string at the specified index without removing it, or None if invalid."""
         with self._lock:
             if 0 <= index < len(self._queue):
-                return self._queue[index]
+                return self._queue[index][0]
             return None
 
     def promote_to_front(self, index: int) -> bool:
@@ -73,9 +75,9 @@ class ClipboardQueue:
         with self._lock:
             if 0 <= index < len(self._queue):
                 items = list(self._queue)
-                removed = items.pop(index)
+                removed_item, _ = items.pop(index)
                 self._queue = deque(items)
-                return removed
+                return removed_item
             return None
 
     def move_item(self, old_index: int, new_index: int) -> bool:
@@ -89,6 +91,21 @@ class ClipboardQueue:
                 return True
             return False
 
+    def purge_expired(self, timeout_seconds: float) -> int:
+        """
+        Purges items older than timeout_seconds from the queue.
+        Returns the number of purged items.
+        """
+        if timeout_seconds <= 0:
+            return 0
+
+        now = time.time()
+        with self._lock:
+            initial_count = len(self._queue)
+            valid_items = [item for item in self._queue if (now - item[1]) <= timeout_seconds]
+            self._queue = deque(valid_items)
+            return initial_count - len(self._queue)
+
     def clear(self) -> None:
         """Empties all items from the FIFO queue."""
         with self._lock:
@@ -100,10 +117,11 @@ class ClipboardQueue:
             return len(self._queue) == 0
 
     def get_items(self) -> List[str]:
-        """Returns a snapshot copy of all items currently in the queue for HUD rendering."""
+        """Returns a snapshot copy of all text strings currently in the queue for HUD rendering."""
         with self._lock:
-            return list(self._queue)
+            return [item[0] for item in self._queue]
 
     def __len__(self) -> int:
         with self._lock:
             return len(self._queue)
+
