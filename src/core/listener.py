@@ -6,6 +6,7 @@ and a native Win32 WM_CLIPBOARDUPDATE listener for copy detection.
 import threading
 import ctypes
 from ctypes import wintypes
+import time
 import sys
 from typing import Callable, Optional, Set
 from pynput import keyboard
@@ -17,6 +18,27 @@ from core.state import AppState
 
 # Windows Virtual Key Codes
 VK_V = 0x56
+
+
+def safe_copy(text: str, retries: int = 5, delay: float = 0.03) -> bool:
+    """Safely copies text to OS clipboard with retry attempts for Win32 clipboard locks."""
+    for _ in range(retries):
+        try:
+            pyperclip.copy(text)
+            return True
+        except Exception:
+            time.sleep(delay)
+    return False
+
+
+def safe_paste(retries: int = 5, delay: float = 0.03) -> str:
+    """Safely reads text from OS clipboard with retry attempts for Win32 clipboard locks."""
+    for _ in range(retries):
+        try:
+            return pyperclip.paste()
+        except Exception:
+            time.sleep(delay)
+    return ""
 
 
 class ShortcutHandler:
@@ -90,7 +112,7 @@ class ShortcutHandler:
             text = self.queue.pop()
             if text:
                 self._ignore_programmatic_copy = True
-                pyperclip.copy(text)
+                safe_copy(text)
                 
                 if self.on_update_callback:
                     self.on_update_callback()
@@ -305,7 +327,7 @@ class NativeClipboardListener:
         """Called by Windows whenever the hidden window receives a message."""
         if msg == self.WM_CLIPBOARDUPDATE and self._running:
             try:
-                text = pyperclip.paste()
+                text = safe_paste()
                 self.handler.on_clipboard_changed(text)
             except Exception:
                 pass
