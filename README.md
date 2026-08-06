@@ -4,14 +4,22 @@
 
 # QPaste
 
-**Sequential FIFO Clipboard Manager for Windows**
+**Copy continuously. Paste sequentially. Zero tab-switching required.**
 
 [![Windows](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/chinthanasathyajithcs/qpaste)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-F59E0B?style=flat-square)](LICENSE)
+[![GUI](https://img.shields.io/badge/GUI-PyQt6-41CD52?style=flat-square&logo=qt&logoColor=white)](https://riverbankcomputing.com/software/pyqt/)
+[![Release](https://img.shields.io/badge/Release-v1.0.0-2563EB?style=flat-square&logo=github&logoColor=white)](https://github.com/chinthanasathyajithcs/qpaste/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/chinthanasathyajithcs/qpaste/total?style=flat-square&logo=github&color=blue)](https://github.com/chinthanasathyajithcs/qpaste/releases)
 [![Tests](https://img.shields.io/badge/Tests-78%20Passed-10B981?style=flat-square)](src/tests)
+[![License](https://img.shields.io/badge/License-MIT-F59E0B?style=flat-square)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square)](https://github.com/chinthanasathyajithcs/qpaste)
 
 [**Download Installer**](https://github.com/chinthanasathyajithcs/qpaste/releases/latest) &nbsp;·&nbsp; [**Download Portable**](https://github.com/chinthanasathyajithcs/qpaste/releases/latest) &nbsp;·&nbsp; [**Documentation**](docs/PRD.md)
+
+<br />
+
+![QPaste Demo](assets/Animation.gif)
 
 </div>
 
@@ -124,7 +132,7 @@ ISCC.exe installer\qpaste_setup.iss
 
 ```
 qpaste/
-├── assets/                  # App icon assets (PNG source + ICO mipmaps)
+├── assets/                  # App icon assets & demo animation GIF
 ├── docs/                    # Product Requirements Document
 ├── installer/               # Inno Setup compilation script & installer output
 ├── src/
@@ -148,3 +156,9 @@ qpaste/
 ## 📄 License
 
 [MIT License](LICENSE) © 2026 ChinthanaSathyajith.
+
+---
+
+<div align="center">
+  <sub>If QPaste saved you tab-switching time, don't forget to leave a ⭐ <b>Star</b> at the top right!</sub>
+</div>

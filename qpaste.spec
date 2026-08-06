@@ -1,43 +1,41 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-import os
-
-block_cipher = None
 
 a = Analysis(
-    ['src/main.py'],
-    pathex=['src'],
+    ['C:\\Users\\User\\OneDrive\\Desktop\\qpaste\\qpaste\\src\\main.py'],
+    pathex=[],
     binaries=[],
-    datas=[('assets', 'assets')],
-    hiddenimports=[
-        'pystray',
-        'pynput',
-        'pyperclip',
-        'PIL',
-        'PIL.Image',
-        'tkinter',
-        'tkinter.ttk',
-    ],
+    datas=[('assets', 'assets'), ('src', 'src')],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
+    excludes=[
+        'pytest',
+        '_pytest',
+        'flet',
+        'pygments',
+        'rich',
+        'unittest',
+        'email',
+        'http',
+        'html',
+        'pydoc',
+        'doctest',
+        'resvg_py',
+    ],
     noarchive=False,
+    optimize=0,
 )
-
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
-    a.zipfiles,
     a.datas,
     [],
-    name='qpaste',
+    name='QPaste',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -50,5 +48,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='assets/icon.ico',
+    icon=['C:\\Users\\User\\OneDrive\\Desktop\\qpaste\\qpaste\\assets\\icon.ico'],
 )

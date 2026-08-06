@@ -38,6 +38,25 @@ def get_asset_path(filename: str) -> str:
     return os.path.join(src_dir, "..", "assets", filename)
 
 
+def apply_window_icons(window, png_path: str, ico_path: str) -> None:
+    """Sets crisp, multi-resolution titlebar and taskbar icons for Tkinter windows."""
+    if sys.platform == "win32" and ico_path and os.path.exists(ico_path):
+        try:
+            window.iconbitmap(ico_path)
+            return
+        except Exception:
+            pass
+    if png_path and os.path.exists(png_path):
+        try:
+            from PIL import Image, ImageTk
+            base = Image.open(png_path).convert("RGBA")
+            img = ImageTk.PhotoImage(base)
+            window.iconphoto(True, img)
+            window._icon_photo = img
+        except Exception:
+            pass
+
+
 def main() -> None:
     # Win32 Single-Instance Enforcement
     single_inst = SingleInstance()
@@ -59,17 +78,7 @@ def main() -> None:
 
     icon_ico = get_asset_path("icon.ico")
     icon_png = get_asset_path("icon.png")
-    if os.path.exists(icon_ico):
-        try:
-            root.iconbitmap(icon_ico)
-        except Exception:
-            pass
-    elif os.path.exists(icon_png):
-        try:
-            img = tk.PhotoImage(file=icon_png)
-            root.iconphoto(True, img)
-        except Exception:
-            pass
+    apply_window_icons(root, icon_png, icon_ico)
 
     config = AppConfig()
     state = AppState(initial_active=True)
@@ -157,7 +166,10 @@ def main() -> None:
     # Prepare Tray Icon
     icon_path = get_asset_path("icon.png")
     if os.path.exists(icon_path):
-        image = Image.open(icon_path)
+        from PIL import ImageEnhance
+        image = Image.open(icon_path).convert("RGBA")
+        image = image.resize((64, 64), Image.Resampling.LANCZOS)
+        image = ImageEnhance.Sharpness(image).enhance(1.8)
     else:
         # Fallback image
         image = Image.new("RGB", (64, 64), color=(40, 180, 220))

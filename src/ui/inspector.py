@@ -97,19 +97,8 @@ class QueueInspectorWindow:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             return os.path.join(base_dir, "..", "assets", filename)
 
-        icon_ico = _get_asset_path("icon.ico")
-        icon_png = _get_asset_path("icon.png")
-        if os.path.exists(icon_ico):
-            try:
-                self.root.iconbitmap(icon_ico)
-            except Exception:
-                pass
-        elif os.path.exists(icon_png):
-            try:
-                img = tk.PhotoImage(file=icon_png)
-                self.root.iconphoto(True, img)
-            except Exception:
-                pass
+        from main import apply_window_icons
+        apply_window_icons(self.root, _get_asset_path("icon.png"), _get_asset_path("icon.ico"))
 
         # Intercept window close (hide instead of exit process)
         self.root.protocol("WM_DELETE_WINDOW", self.hide)
