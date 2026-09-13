@@ -32,6 +32,7 @@ from core.single_instance import SingleInstance
 from core.startup import is_startup_enabled, enable_startup, disable_startup
 from ui.toast import NativeToastOverlay
 from ui.inspector import QueueInspectorWindow
+from ui.notepad import QuickNotepadHUD
 
 
 def get_asset_path(filename: str) -> str:
@@ -88,6 +89,8 @@ def main() -> None:
     queue = ClipboardQueue()
     icon_instance = []
 
+    notepad = QuickNotepadHUD(master=root, config=config)
+
     # Native ToolWindow Toast Overlay
     toast_overlay = NativeToastOverlay(master=root)
     toast_overlay.start()
@@ -111,20 +114,31 @@ def main() -> None:
         queue,
         on_notify_callback=on_notify,
         on_update_callback=on_update,
+        on_notepad_toggle_callback=notepad.toggle,
         config=config,
     )
-    listener = GlobalKeyboardListener(handler)
+    listener = GlobalKeyboardListener(handler, config=config)
     listener.start()
     
     clipboard_listener = NativeClipboardListener(handler)
     clipboard_listener.start()
+
+    def on_hotkeys_changed() -> None:
+        listener.reload_hotkeys()
+        if icon_instance:
+            try:
+                icon_instance[0].menu = build_tray_menu()
+                if hasattr(icon_instance[0], "update_menu"):
+                    icon_instance[0].update_menu()
+            except Exception:
+                pass
 
     # Visual Queue Inspector Window
     inspector = QueueInspectorWindow(
         queue,
         config=config,
         master=root,
-        on_hotkeys_changed=listener.reload_hotkeys,
+        on_hotkeys_changed=on_hotkeys_changed,
     )
 
     # Background Queue Expiration Manager Thread
@@ -133,11 +147,19 @@ def main() -> None:
             time.sleep(1)
             try:
                 if config.get("auto_clear_enabled", False):
+                    mode = config.get("auto_clear_mode", "idle")
                     timeout = config.get("auto_clear_seconds", 60)
-                    purged_count = queue.purge_expired(timeout)
-                    if purged_count > 0:
-                        on_notify("QPaste : Cleared", "cleared")
-                        on_update()
+                    if mode == "idle":
+                        purged_count = queue.purge_idle(timeout)
+                        if purged_count > 0:
+                            on_notify("QPaste : Cleared", "cleared")
+                            on_update()
+                    else:
+                        purged_count = queue.purge_expired(timeout)
+                        if purged_count > 0:
+                            if len(queue) == 0:
+                                on_notify("QPaste : Cleared", "cleared")
+                            on_update()
             except Exception:
                 pass
 
@@ -151,6 +173,9 @@ def main() -> None:
     def on_clear_queue(icon, item):
         handler.handle_shift_f4()
 
+    def on_toggle_notepad(icon, item):
+        notepad.toggle()
+
     def on_open_inspector(icon, item):
         inspector.show()
 
@@ -161,6 +186,8 @@ def main() -> None:
             enable_startup()
 
     def on_exit(icon, item):
+        notepad.hide()
+        config.save()
         clipboard_listener.stop()
         listener.stop()
         single_inst.release()
@@ -171,6 +198,18 @@ def main() -> None:
         except Exception:
             pass
         os._exit(0)
+
+    def build_tray_menu():
+        return pystray.Menu(
+            item(f"Toggle Queue Mode ({config.get_hotkey('toggle_queue', 'F4')})", on_toggle_queue),
+            item(f"Clear Queue ({config.get_hotkey('clear_queue', 'Shift+F4')})", on_clear_queue),
+            item(f"Quick Notepad ({config.get_hotkey('toggle_notepad', 'F3')})", on_toggle_notepad),
+            item("Open Queue Inspector", on_open_inspector, default=True),
+            pystray.Menu.SEPARATOR,
+            item("Start with Windows", on_toggle_startup, checked=lambda item: is_startup_enabled()),
+            pystray.Menu.SEPARATOR,
+            item("Exit", on_exit),
+        )
 
     # Prepare Tray Icon
     icon_path = get_asset_path("icon.png")
@@ -183,16 +222,7 @@ def main() -> None:
         # Fallback image
         image = Image.new("RGB", (64, 64), color=(40, 180, 220))
 
-    menu = pystray.Menu(
-        item("Toggle Queue Mode (F4)", on_toggle_queue),
-        item("Clear Queue (Shift+F4)", on_clear_queue),
-        item("Open Queue Inspector", on_open_inspector, default=True),
-        pystray.Menu.SEPARATOR,
-        item("Start with Windows", on_toggle_startup, checked=lambda item: is_startup_enabled()),
-        pystray.Menu.SEPARATOR,
-        item("Exit", on_exit),
-    )
-
+    menu = build_tray_menu()
     tray_icon = pystray.Icon("QPaste", image, "QPaste", menu)
     icon_instance.append(tray_icon)
 
@@ -206,6 +236,8 @@ def main() -> None:
     except KeyboardInterrupt:
         pass
     finally:
+        notepad.hide()
+        config.save()
         clipboard_listener.stop()
         listener.stop()
         single_inst.release()
