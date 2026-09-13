@@ -28,9 +28,14 @@ BTN_HOVER = "#EF4444"        # Close button hover red
 class QuickNotepadHUD:
     """Floating draggable Quick Notepad HUD overlay with auto-persistence."""
 
-    def __init__(self, config: Optional[AppConfig] = None, master: Optional[Any] = None) -> None:
+    def __init__(
+        self,
+        config: Optional[AppConfig] = None,
+        master: Optional[Any] = None,
+        root: Optional[Any] = None,
+    ) -> None:
         self.config: AppConfig = config or AppConfig()
-        self.master: Optional[Any] = master
+        self.master: Optional[Any] = master or root
         self.window: Optional[Any] = None
         self.text_widget: Optional[Any] = None
         self.title_bar: Optional[Any] = None

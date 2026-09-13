@@ -46,3 +46,19 @@ def test_shortcut_handler_triggers_notification_callback():
     handler.handle_shift_f4()
     assert notify_mock.call_count == 3
     notify_mock.assert_called_with("QPaste : Cleared", "cleared")
+
+
+def test_shortcut_handler_notepad_callback():
+    notepad_mock = MagicMock()
+    state = AppState(initial_active=True)
+    queue = ClipboardQueue()
+
+    handler = ShortcutHandler(
+        state,
+        queue,
+        on_notepad_toggle_callback=notepad_mock,
+    )
+
+    handler.handle_toggle_notepad()
+    notepad_mock.assert_called_once()
+
