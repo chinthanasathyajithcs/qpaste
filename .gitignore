@@ -2,28 +2,73 @@
 __pycache__/
 *.py[cod]
 *$py.class
-.pytest_cache/
+*.pyc
+*.pyd
+*.pyo
+*.so
 
 # Virtual Environments
 .venv/
 src/.venv/
 venv/
+env/
 ENV/
+*.venv/
 
 # PyInstaller & Build artifacts
 build/
 dist/
+*.spec
+!qpaste.spec
 *.spec.bak
+*.egg-info/
+*.egg
+eggs/
+.eggs/
+wheels/
 
 # Inno Setup output
 installer/Output/
 
+# Testing & Coverage
+.pytest_cache/
+src/.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Local configuration & runtime state
+config.json
+*.local
+
+# Binary design & raw creative assets
+*.ai
+*.psd
+
+# OhMyOpenCode / agent runtime & session artifacts
+.omo/
+
 # Documentation scratch planning files
 docs/plan.md
 
-# IDE / OS specific files
-.vscode/
+# IDEs & Editor files
 .idea/
+.vscode/*
+!.vscode/settings.json
 *.swp
-.DS_Store
+*.swo
+*~
+
+# Operating System files (Windows, macOS)
 Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.stackdump
+.DS_Store
+.AppleDouble
+.LSOverride
