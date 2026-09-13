@@ -108,6 +108,7 @@ def main() -> None:
         queue,
         on_notify_callback=on_notify,
         on_update_callback=on_update,
+        config=config,
     )
     listener = GlobalKeyboardListener(handler)
     listener.start()

@@ -15,6 +15,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "auto_clear_seconds": 60,
     "auto_clear_mode": "idle",  # "idle" or "ttl"
     "ignore_consecutive_duplicates": True,
+    "debounce_ms": 200.0,
+    "duplicate_window_sec": 1.0,
     "hotkeys": {
         "toggle_queue": "F4",
         "clear_queue": "Shift+F4",
