@@ -5,7 +5,10 @@ System Tray icon, Native Toast Overlay, and Visual Queue Inspector GUI.
 """
 import os
 import sys
-import tkinter as tk
+try:
+    import tkinter as tk
+except ImportError:
+    tk = None  # type: ignore[assignment]
 from PIL import Image
 
 from typing import Optional
@@ -117,7 +120,12 @@ def main() -> None:
     clipboard_listener.start()
 
     # Visual Queue Inspector Window
-    inspector = QueueInspectorWindow(queue, config=config, master=root)
+    inspector = QueueInspectorWindow(
+        queue,
+        config=config,
+        master=root,
+        on_hotkeys_changed=listener.reload_hotkeys,
+    )
 
     # Background Queue Expiration Manager Thread
     def run_expiration_manager():

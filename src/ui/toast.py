@@ -3,7 +3,10 @@ Native Windows ToolWindow Toast Overlay for QPaste.
 Uses Tkinter Toplevel + ctypes Win32 API (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE)
 to guarantee zero taskbar presence and zero focus stealing.
 """
-import tkinter as tk
+try:
+    import tkinter as tk
+except ImportError:
+    tk = None  # type: ignore[assignment]
 import ctypes
 from typing import Optional
 

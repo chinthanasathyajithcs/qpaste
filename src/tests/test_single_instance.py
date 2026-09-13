@@ -4,12 +4,14 @@ from unittest.mock import patch, MagicMock
 from core.single_instance import SingleInstance, ERROR_ALREADY_EXISTS
 
 class TestSingleInstance(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == "win32", "Win32 named mutex is only enforced on Windows")
     def test_acquire_first_instance(self):
         si = SingleInstance("Local\\Test_QPaste_Mutex_Unique_1")
         result = si.acquire()
         self.assertTrue(result)
         si.release()
 
+    @unittest.skipUnless(sys.platform == "win32", "Win32 named mutex is only enforced on Windows")
     def test_acquire_second_instance_fails(self):
         si1 = SingleInstance("Local\\Test_QPaste_Mutex_Unique_2")
         result1 = si1.acquire()

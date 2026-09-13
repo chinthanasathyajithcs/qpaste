@@ -1,6 +1,10 @@
 import os
 import sys
-import winreg
+try:
+    import winreg
+except ImportError:
+    from unittest.mock import MagicMock
+    winreg = MagicMock()  # type: ignore[assignment]
 
 APP_NAME = "QPaste"
 
@@ -20,7 +24,7 @@ def get_startup_command() -> str:
         return f'"{sys.executable}"'
     python_exe = sys.executable
     if python_exe.lower().endswith("python.exe"):
-        pythonw = os.path.join(os.path.dirname(python_exe), "pythonw.exe")
+        pythonw = python_exe[:-10] + "pythonw.exe"
         if os.path.exists(pythonw):
             python_exe = pythonw
     if sys.argv[0] and sys.argv[0].endswith(".py") and sys.argv[0] != "-c":
