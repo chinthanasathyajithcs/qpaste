@@ -22,6 +22,8 @@ except ImportError:
     pyperclip = None  # type: ignore
 
 from core.clipboard_queue import ClipboardQueue
+from core.config import AppConfig
+from core.hotkey_parser import HotkeyCombo, match_hotkey, parse_hotkey
 from core.state import AppState
 
 # Windows Virtual Key Codes
@@ -62,6 +64,7 @@ class ShortcutHandler:
         queue: ClipboardQueue,
         on_update_callback: Optional[Callable[[], None]] = None,
         on_notify_callback: Optional[Callable[[str, str], None]] = None,
+        on_notepad_toggle_callback: Optional[Callable[[], None]] = None,
         config: Optional[Any] = None,
         debounce_ms: float = 200.0,
         ignore_consecutive_duplicates: bool = True,
@@ -71,6 +74,7 @@ class ShortcutHandler:
         self.queue = queue
         self.on_update_callback = on_update_callback
         self.on_notify_callback = on_notify_callback
+        self.on_notepad_toggle_callback = on_notepad_toggle_callback
         self.config = config
         self._copy_lock = threading.Lock()
         self._ignore_programmatic_copy = False
@@ -123,6 +127,13 @@ class ShortcutHandler:
             self.on_update_callback()
         if self.on_notify_callback:
             self.on_notify_callback("QPaste : Cleared", "cleared")
+
+    def handle_toggle_notepad(self) -> None:
+        """Toggles the quick notepad window."""
+        if self.on_notepad_toggle_callback:
+            self.on_notepad_toggle_callback()
+        elif self.on_notify_callback:
+            self.on_notify_callback("QPaste : Notepad", "notepad")
 
     def on_clipboard_changed(self, text: Optional[str]) -> None:
         """Handles external clipboard changes with debounce and deduplication."""
@@ -186,41 +197,68 @@ class ShortcutHandler:
 class GlobalKeyboardListener:
     """
     Low-level global keyboard listener using pynput.
-    Handles F4/Shift+F4 hotkeys and conditionally suppresses Ctrl+V
-    to inject QPaste's queued clipboard content.
+    Handles configurable hotkeys (toggle queue, clear queue, toggle notepad)
+    and conditionally suppresses Ctrl+V to inject QPaste's queued clipboard content.
     """
 
-    def __init__(self, handler: ShortcutHandler) -> None:
+    def __init__(
+        self,
+        handler: ShortcutHandler,
+        config: Optional[AppConfig] = None,
+    ) -> None:
         self.handler = handler
+        self.config = config
         self._listener: Optional[Any] = None
-        self._pressed_keys: Set = set()
-        
+        self._pressed_keys: Set[Any] = set()
+        self._toggle_queue_combo: Optional[HotkeyCombo] = None
+        self._clear_queue_combo: Optional[HotkeyCombo] = None
+        self._toggle_notepad_combo: Optional[HotkeyCombo] = None
+        self.reload_hotkeys()
+
         self._controller = keyboard.Controller() if keyboard else None
         self._simulating_v = False
 
-    def _is_ctrl_held(self) -> bool:
-        """Returns True if either Ctrl key is currently held."""
-        return bool(Key and (Key.ctrl_l in self._pressed_keys or Key.ctrl_r in self._pressed_keys))
+    def reload_hotkeys(self) -> None:
+        """Reads hotkey mappings from config and parses into active combos."""
+        raw_toggle = "F4"
+        raw_clear = "Shift+F4"
+        raw_notepad = "F3"
 
-    def _is_shift_held(self) -> bool:
-        """Returns True if any Shift key is currently held."""
-        return bool(Key and any(k in self._pressed_keys for k in (Key.shift_l, Key.shift_r, Key.shift)))
+        if self.config is not None:
+            if hasattr(self.config, "get_hotkey"):
+                raw_toggle = self.config.get_hotkey("toggle_queue", default="F4") or "F4"
+                raw_clear = self.config.get_hotkey("clear_queue", default="Shift+F4") or "Shift+F4"
+                raw_notepad = self.config.get_hotkey("toggle_notepad", default="F3") or "F3"
+            elif hasattr(self.config, "get"):
+                hotkeys = self.config.get("hotkeys")
+                if isinstance(hotkeys, dict):
+                    raw_toggle = hotkeys.get("toggle_queue", "F4") or "F4"
+                    raw_clear = hotkeys.get("clear_queue", "Shift+F4") or "Shift+F4"
+                    raw_notepad = hotkeys.get("toggle_notepad", "F3") or "F3"
 
-    def _on_press(self, key) -> None:
-        """Tracks key press and handles non-blocking shortcuts (F4)."""
-        if not Key:
+        self._toggle_queue_combo = parse_hotkey(str(raw_toggle)) or parse_hotkey("F4")
+        self._clear_queue_combo = parse_hotkey(str(raw_clear)) or parse_hotkey("Shift+F4")
+        self._toggle_notepad_combo = parse_hotkey(str(raw_notepad)) or parse_hotkey("F3")
+
+    def _on_press(self, key: Any) -> None:
+        """Tracks key press and handles matching shortcuts."""
+        if key is None:
             return
         self._pressed_keys.add(key)
 
-        # --- F4 / Shift+F4 (always active, regardless of queue mode) ---
-        if key == Key.f4:
-            if self._is_shift_held():
-                self.handler.handle_shift_f4()
-            elif not self._is_ctrl_held():
-                self.handler.handle_f4()
+        if self._toggle_notepad_combo and match_hotkey(self._toggle_notepad_combo, self._pressed_keys, key):
+            self.handler.handle_toggle_notepad()
             return
 
-    def _on_release(self, key) -> None:
+        if self._clear_queue_combo and match_hotkey(self._clear_queue_combo, self._pressed_keys, key):
+            self.handler.handle_shift_f4()
+            return
+
+        if self._toggle_queue_combo and match_hotkey(self._toggle_queue_combo, self._pressed_keys, key):
+            self.handler.handle_f4()
+            return
+
+    def _on_release(self, key: Any) -> None:
         """Tracks key releases to maintain pressed key state."""
         self._pressed_keys.discard(key)
 
