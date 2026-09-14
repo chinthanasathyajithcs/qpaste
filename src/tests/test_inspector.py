@@ -18,6 +18,7 @@ if src_dir not in sys.path:
 from core.clipboard_queue import ClipboardQueue
 from core.config import AppConfig
 import ui.inspector as inspector_mod
+import ui.settings_tab as settings_tab_mod
 from ui.inspector import QueueInspectorWindow
 
 
@@ -47,6 +48,9 @@ class MockWidget:
 
     def configure(self, **kwargs: Any) -> None:
         self._config.update(kwargs)
+
+    def __getitem__(self, key: str) -> Any:
+        return self._config.get(key, self)
 
     def bind(self, event: str, handler: Any) -> None:
         self._binds[event] = handler
@@ -133,7 +137,9 @@ class TestQueueInspector(unittest.TestCase):
         self.mock_tk.CENTER = "center"
 
         self.orig_tk = inspector_mod.tk
+        self.orig_settings_tk = settings_tab_mod.tk
         inspector_mod.tk = self.mock_tk
+        settings_tab_mod.tk = self.mock_tk
 
         self.inspector = QueueInspectorWindow(
             queue=self.queue,
@@ -143,6 +149,7 @@ class TestQueueInspector(unittest.TestCase):
 
     def tearDown(self) -> None:
         inspector_mod.tk = self.orig_tk
+        settings_tab_mod.tk = self.orig_settings_tk
 
     def _on_hotkeys_changed(self) -> None:
         self.hotkeys_reloaded = True

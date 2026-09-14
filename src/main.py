@@ -185,8 +185,7 @@ def main() -> None:
             try:
                 if config.get("auto_clear_enabled", False):
                     timeout = config.get("auto_clear_seconds", 60)
-                    mode = config.get("auto_clear_mode", "idle")
-                    purged = queue.purge_idle(timeout) if mode == "idle" else queue.purge_expired(timeout)
+                    purged = queue.purge_idle(timeout)
                     if purged > 0:
                         on_notify("QPaste : Cleared", "cleared")
                         on_update()

@@ -18,7 +18,7 @@ if src_dir not in sys.path:
 
 from core.config import DEFAULT_CONFIG, AppConfig
 import ui.settings_tab as settings_mod
-from ui.settings_tab import SettingsTab, DURATION_OPTIONS, MODE_OPTIONS, HOTKEY_ACTIONS
+from ui.settings_tab import SettingsTab, DURATION_OPTIONS, HOTKEY_ACTIONS
 
 
 class MockVar:
@@ -122,14 +122,13 @@ class TestSettingsTab(unittest.TestCase):
 
         self.assertFalse(tab.auto_clear_var.get())
         self.assertEqual(tab.duration_var.get(), "1 Minute")
-        self.assertEqual(tab.mode_var.get(), "Idle Inactivity")
 
         self.assertEqual(tab.hotkey_vars["toggle_queue"].get(), "F4")
         self.assertEqual(tab.hotkey_vars["clear_queue"].get(), "Shift+F4")
         self.assertEqual(tab.hotkey_vars["toggle_notepad"].get(), "F3")
 
     def test_auto_clear_settings_change_persists_to_config(self) -> None:
-        """When auto-clear checkbox, duration, or mode changes, AppConfig is updated."""
+        """When auto-clear checkbox or duration changes, AppConfig is updated."""
         tab = SettingsTab(
             self.parent_mock,
             config=self.config,
@@ -138,18 +137,17 @@ class TestSettingsTab(unittest.TestCase):
 
         tab.auto_clear_var.set(True)
         tab.duration_var.set("5 Minutes")
-        tab.mode_var.set("Fixed TTL")
         tab._on_auto_clear_changed()
 
         self.assertTrue(self.config.get("auto_clear_enabled"))
         self.assertEqual(self.config.get("auto_clear_seconds"), 300)
-        self.assertEqual(self.config.get("auto_clear_mode"), "ttl")
+        self.assertEqual(self.config.get("auto_clear_mode"), "idle")
 
         # Verify disk persistence
         reloaded = AppConfig(config_path=self.config_path)
         self.assertTrue(reloaded.get("auto_clear_enabled"))
         self.assertEqual(reloaded.get("auto_clear_seconds"), 300)
-        self.assertEqual(reloaded.get("auto_clear_mode"), "ttl")
+        self.assertEqual(reloaded.get("auto_clear_mode"), "idle")
 
     def test_valid_hotkey_editing_persists_and_triggers_callback(self) -> None:
         """When a valid hotkey combo is entered, it saves to config and invokes on_hotkeys_changed."""

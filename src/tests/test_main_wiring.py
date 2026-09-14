@@ -103,39 +103,17 @@ class TestMainWiring(unittest.TestCase):
         self.assertEqual(get_toggle_queue_label(), "Toggle Queue Mode (F8)")
 
     def test_expiration_manager_idle_mode_purge(self) -> None:
-        """Verify expiration manager calls purge_idle when mode is 'idle'."""
+        """Verify expiration manager calls purge_idle."""
         self.queue.push("Item 1")
         self.config_data["auto_clear_enabled"] = True
-        self.config_data["auto_clear_mode"] = "idle"
         self.config_data["auto_clear_seconds"] = 10
 
         with patch.object(self.queue, "purge_idle", return_value=1) as mock_purge_idle:
-            with patch.object(self.queue, "purge_expired") as mock_purge_expired:
-                # Simulate one iteration of expiration manager
-                timeout = self.mock_config.get("auto_clear_seconds", 60)
-                mode = self.mock_config.get("auto_clear_mode", "idle")
-                purged = self.queue.purge_idle(timeout) if mode == "idle" else self.queue.purge_expired(timeout)
+            timeout = self.mock_config.get("auto_clear_seconds", 60)
+            purged = self.queue.purge_idle(timeout)
 
-                mock_purge_idle.assert_called_once_with(10)
-                mock_purge_expired.assert_not_called()
-                self.assertEqual(purged, 1)
-
-    def test_expiration_manager_ttl_mode_purge(self) -> None:
-        """Verify expiration manager calls purge_expired when mode is 'ttl'."""
-        self.queue.push("Item 1")
-        self.config_data["auto_clear_enabled"] = True
-        self.config_data["auto_clear_mode"] = "ttl"
-        self.config_data["auto_clear_seconds"] = 15
-
-        with patch.object(self.queue, "purge_idle") as mock_purge_idle:
-            with patch.object(self.queue, "purge_expired", return_value=1) as mock_purge_expired:
-                timeout = self.mock_config.get("auto_clear_seconds", 60)
-                mode = self.mock_config.get("auto_clear_mode", "idle")
-                purged = self.queue.purge_idle(timeout) if mode == "idle" else self.queue.purge_expired(timeout)
-
-                mock_purge_expired.assert_called_once_with(15)
-                mock_purge_idle.assert_not_called()
-                self.assertEqual(purged, 1)
+            mock_purge_idle.assert_called_once_with(10)
+            self.assertEqual(purged, 1)
 
     def test_teardown_cleans_up_notepad_and_config(self) -> None:
         """Verify application exit logic hides notepad and saves config."""
