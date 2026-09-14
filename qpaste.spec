@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['C:\\Users\\User\\OneDrive\\Desktop\\qpaste\\qpaste\\src\\main.py'],
+    ['src/main.py'],
     pathex=[],
     binaries=[],
     datas=[('assets', 'assets'), ('src', 'src')],
@@ -48,5 +48,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['C:\\Users\\User\\OneDrive\\Desktop\\qpaste\\qpaste\\assets\\icon.ico'],
+    icon=['assets/icon.ico'],
 )
