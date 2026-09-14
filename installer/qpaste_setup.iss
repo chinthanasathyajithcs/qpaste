@@ -1,11 +1,11 @@
-; Inno Setup Script for QPaste v1.0.0
+; Inno Setup Script for QPaste v1.1.0
 ; Sequential Clipboard Manager for Windows
 
 #define MyAppName "QPaste"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "QPaste Project"
 #define MyAppURL "https://github.com/chinthanasathyajithcs/qpaste"
-#define MyAppExeName "qpaste.exe"
+#define MyAppExeName "QPaste.exe"
 
 [Setup]
 AppId={{9C0A7E7A-4D3B-4C91-A8F2-72E5D6C81234}}
@@ -16,14 +16,14 @@ AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={localappdata}\Programs\{#MyAppName}
-OutputBaseFilename=QPaste_Setup_v1.0.0
+OutputBaseFilename=QPaste_Setup_v1.1.0
 Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=lowest
 SetupIconFile=..\assets\icon.ico
 ChangesAssociations=yes
 CloseApplications=yes
-CloseApplicationsFilter=qpaste.exe
+CloseApplicationsFilter=QPaste.exe
 UninstallDisplayIcon={sys}\shell32.dll,31
 
 [Languages]
@@ -47,4 +47,4 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "taskkill"; Parameters: "/F /IM qpaste.exe"; Flags: runhidden
+Filename: "taskkill"; Parameters: "/F /IM QPaste.exe"; Flags: runhidden

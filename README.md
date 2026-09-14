@@ -79,8 +79,8 @@ When the queue is empty, `Ctrl+V` reverts to standard Windows paste behavior. QP
 
 ### Direct Downloads
 
-- **[QPaste_Setup_v1.0.0.exe](https://github.com/chinthanasathyajithcs/qpaste/releases/latest)** — Standard Windows installer. Installs to `%LocalAppData%\Programs\QPaste`, adds Start Menu shortcuts, autostart option, and uninstaller.
-- **[qpaste.exe](https://github.com/chinthanasathyajithcs/qpaste/releases/latest)** — Standalone portable executable. No installation required.
+- **[QPaste_Setup_v1.1.0.exe](https://github.com/chinthanasathyajithcs/qpaste/releases/latest)** — Standard Windows installer. Installs to `%LocalAppData%\Programs\QPaste`, adds Start Menu shortcuts, autostart option, and uninstaller.
+- **[QPaste.exe](https://github.com/chinthanasathyajithcs/qpaste/releases/latest)** — Standalone portable executable. No installation required.
 
 ### Package Managers
 
@@ -130,10 +130,10 @@ python3 -m unittest discover -s src/tests
 ### Building Binaries
 
 ```powershell
-# Standalone executable -> dist/qpaste.exe
+# Standalone executable -> dist/QPaste.exe
 python -m PyInstaller qpaste.spec
 
-# Setup installer -> installer/Output/QPaste_Setup_v1.0.0.exe
+# Setup installer -> installer/Output/QPaste_Setup_v1.1.0.exe
 ISCC.exe installer\qpaste_setup.iss
 ```
 
