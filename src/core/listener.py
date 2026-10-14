@@ -283,8 +283,11 @@ class GlobalKeyboardListener:
             self._simulating_v = True
             try:
                 if self._controller:
-                    self._controller.press('v')
-                    self._controller.release('v')
+                    # Press by virtual key: the 'v' character maps through the active layout,
+                    # which types a different key on non-Latin layouts such as Russian.
+                    v_key = keyboard.KeyCode.from_vk(VK_V)
+                    self._controller.press(v_key)
+                    self._controller.release(v_key)
             finally:
                 self._simulating_v = False
 

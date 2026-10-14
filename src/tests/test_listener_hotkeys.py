@@ -9,7 +9,7 @@ import sys
 import tempfile
 import unittest
 from typing import Any, List, Optional, Tuple
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 # Ensure src directory is on sys.path for direct unittest invocation
 src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -19,7 +19,7 @@ if src_dir not in sys.path:
 from core.clipboard_queue import ClipboardQueue
 from core.config import AppConfig
 from core.hotkey_parser import HotkeyCombo
-from core.listener import GlobalKeyboardListener, ShortcutHandler
+from core.listener import VK_V, GlobalKeyboardListener, ShortcutHandler
 from core.state import AppState
 
 
@@ -270,6 +270,25 @@ class TestListenerHotkeys(unittest.TestCase):
         listener._on_release(MockKey("f4"))
         handler.handle_f4.assert_called_once()
         handler.handle_shift_f4.assert_not_called()
+
+    def test_async_paste_injects_v_by_virtual_key_not_character(self) -> None:
+        """Given queued items, When Ctrl+V is intercepted, Then the injected V is sent by virtual key so non-Latin keyboard layouts paste the queue."""
+        handler = ShortcutHandler(state=self.state, queue=self.queue)
+        handler.handle_paste = MagicMock(return_value=True)
+
+        listener = GlobalKeyboardListener(handler=handler)
+        controller = MagicMock()
+        listener._controller = controller
+        v_key = object()
+        keyboard_stub = MagicMock()
+        keyboard_stub.KeyCode.from_vk.return_value = v_key
+
+        with patch("core.listener.keyboard", keyboard_stub):
+            listener._async_paste()
+
+        keyboard_stub.KeyCode.from_vk.assert_called_once_with(VK_V)
+        controller.press.assert_called_once_with(v_key)
+        controller.release.assert_called_once_with(v_key)
 
 
 if __name__ == "__main__":
