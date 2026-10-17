@@ -55,6 +55,12 @@ VK_MOD_MAP: dict[int, str] = {
 
 RE_FUNCTION_KEY = re.compile(r"^f([1-9]|1[0-9]|2[0-4])$", re.IGNORECASE)
 
+# Virtual-key ranges whose physical key identity is layout independent. The char a
+# pynput KeyCode reports for these depends on the active layout (Cyrillic, AZERTY
+# top row, ...), so they are resolved by vk before looking at the char.
+VK_DIGIT_MIN, VK_DIGIT_MAX = 0x30, 0x39
+VK_LETTER_MIN, VK_LETTER_MAX = 0x41, 0x5A
+
 
 @dataclass(frozen=True, slots=True)
 class HotkeyCombo:
@@ -78,9 +84,13 @@ def _normalize_vk(vk: int) -> Optional[str]:
         return VK_KEY_MAP[vk]
     if 0x70 <= vk <= 0x87:
         return f"f{vk - 0x70 + 1}"
-    if 0x30 <= vk <= 0x39 or 0x41 <= vk <= 0x5A:
+    if _is_letter_or_digit_vk(vk):
         return chr(vk).lower()
     return None
+
+
+def _is_letter_or_digit_vk(vk: int) -> bool:
+    return VK_DIGIT_MIN <= vk <= VK_DIGIT_MAX or VK_LETTER_MIN <= vk <= VK_LETTER_MAX
 
 
 def _extract_modifier_name(key: Any) -> Optional[str]:
@@ -112,6 +122,10 @@ def _extract_key_name(key: Any) -> Optional[str]:
     if isinstance(key, int):
         return _normalize_vk(key)
 
+    vk = getattr(key, "vk", None)
+    if isinstance(vk, int) and _is_letter_or_digit_vk(vk):
+        return _normalize_vk(vk)
+
     char = getattr(key, "char", None)
     if isinstance(char, str) and char:
         if len(char) == 1 and 1 <= ord(char) <= 26:
@@ -126,7 +140,6 @@ def _extract_key_name(key: Any) -> Optional[str]:
         if token:
             return token
 
-    vk = getattr(key, "vk", None)
     if isinstance(vk, int):
         token = _normalize_vk(vk)
         if token:
@@ -198,6 +211,15 @@ def format_hotkey(combo: HotkeyCombo) -> str:
         parts.append(key.capitalize())
 
     return "+".join(parts)
+
+
+def is_altgr_risky(combo: HotkeyCombo) -> bool:
+    """
+    True when the combo could collide with AltGr typing: Windows reports AltGr as
+    Ctrl+Alt, so Ctrl+Alt plus a printable key fires while typing e.g. Polish "ą".
+    Function, navigation and other named keys are not mapped behind AltGr.
+    """
+    return {"ctrl", "alt"} <= combo.modifiers and len(combo.key) == 1
 
 
 def match_hotkey(combo: HotkeyCombo, pressed_keys: Set[Any], current_key: Any) -> bool:

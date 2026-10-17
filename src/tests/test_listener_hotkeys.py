@@ -271,6 +271,19 @@ class TestListenerHotkeys(unittest.TestCase):
         handler.handle_f4.assert_called_once()
         handler.handle_shift_f4.assert_not_called()
 
+    def test_custom_hotkey_fires_on_russian_layout(self) -> None:
+        """Given custom Ctrl+Alt+V and a Russian layout, When the physical V key is pressed, Then the hotkey fires."""
+        handler = ShortcutHandler(state=self.state, queue=self.queue)
+        handler.handle_f4 = MagicMock()
+        listener = GlobalKeyboardListener(handler=handler)
+        listener._toggle_queue_combo = HotkeyCombo(frozenset({"ctrl", "alt"}), "v")
+
+        listener._on_press(MockKey("ctrl_l"))
+        listener._on_press(MockKey("alt_l"))
+        listener._on_press(MockKeyCode(char="\u043c", vk=0x56))
+
+        handler.handle_f4.assert_called_once()
+
     def test_async_paste_injects_v_by_virtual_key_not_character(self) -> None:
         """Given queued items, When Ctrl+V is intercepted, Then the injected V is sent by virtual key so non-Latin keyboard layouts paste the queue."""
         handler = ShortcutHandler(state=self.state, queue=self.queue)
