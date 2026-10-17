@@ -250,6 +250,24 @@ def test_copy_fires_notification_callback():
     assert notifications[-1] == ("2", "copy_count")
 
 
+def test_copy_at_queue_capacity_fires_static_count_notification():
+    """Verify a copy that evicts the oldest item (length unchanged) is reported as a static count."""
+    state = AppState(initial_active=True)
+    queue = ClipboardQueue(max_size=3)
+    notifications = []
+    handler = ShortcutHandler(
+        state=state, queue=queue,
+        on_notify_callback=lambda msg, t: notifications.append((msg, t))
+    )
+
+    for text in ("One", "Two", "Three"):
+        handler.on_clipboard_changed(text)
+    assert notifications[-1] == ("3", "copy_count")
+
+    handler.on_clipboard_changed("Four")
+    assert notifications[-1] == ("3", "count_static")
+
+
 # ---------------------------------------------------------------------------
 # Extensive TDD Test Cases for LIFO/FIFO and Hook Races
 # ---------------------------------------------------------------------------
