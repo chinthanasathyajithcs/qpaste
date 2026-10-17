@@ -24,6 +24,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     },
     "notepad_text": "",
     "notepad_geometry": "360x280+150+150",
+    "notepad_font_size": 10,
 }
 
 
