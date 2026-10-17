@@ -13,7 +13,7 @@ src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if src_dir not in sys.path:
     sys.path.insert(0, src_dir)
 
-from core.hotkey_parser import HotkeyCombo, format_hotkey, match_hotkey, parse_hotkey
+from core.hotkey_parser import HotkeyCombo, format_hotkey, is_altgr_risky, match_hotkey, parse_hotkey
 
 
 class MockKey:
@@ -168,6 +168,79 @@ class TestHotkeyMatcher(unittest.TestCase):
 
     def test_match_invalid_combo(self) -> None:
         self.assertFalse(match_hotkey("NotACombo", set(), "v"))  # type: ignore[arg-type]
+
+class TestLayoutIndependentMatching(unittest.TestCase):
+    """Letters and top-row digits resolve by virtual key, not by layout-dependent char."""
+
+    def test_russian_layout_letter_matches_by_vk(self) -> None:
+        combo = parse_hotkey("Ctrl+Alt+V")
+        held = {MockKey("ctrl_l"), MockKey("alt_l")}
+        key_v = MockKeyCode(char="\u043c", vk=0x56)
+        self.assertTrue(match_hotkey(combo, held, key_v))
+
+    def test_azerty_top_row_digit_matches_by_vk(self) -> None:
+        combo = parse_hotkey("Ctrl+1")
+        key_one = MockKeyCode(char="&", vk=0x31)
+        self.assertTrue(match_hotkey(combo, {MockKey("ctrl_l")}, key_one))
+
+    def test_layout_char_does_not_cause_false_match(self) -> None:
+        # Physical V key must not match a hotkey bound to the char it happens to report
+        combo = HotkeyCombo(frozenset({"ctrl"}), "\u043c")
+        key_v = MockKeyCode(char="\u043c", vk=0x56)
+        self.assertFalse(match_hotkey(combo, {MockKey("ctrl_l")}, key_v))
+
+    def test_ctrl_control_character_still_matches(self) -> None:
+        combo = parse_hotkey("Ctrl+V")
+        key_v = MockKeyCode(char="\x16", vk=0x56)
+        self.assertTrue(match_hotkey(combo, {MockKey("ctrl_l")}, key_v))
+
+    def test_ctrl_control_character_without_vk_still_matches(self) -> None:
+        combo = parse_hotkey("Ctrl+V")
+        self.assertTrue(match_hotkey(combo, {MockKey("ctrl_l")}, MockKeyCode(char="\x16")))
+
+    def test_numpad_digits_unchanged(self) -> None:
+        # With a char reported, numpad resolves by char exactly as before
+        combo = parse_hotkey("Ctrl+5")
+        numpad_five = MockKeyCode(char="5", vk=0x65)
+        self.assertTrue(match_hotkey(combo, {MockKey("ctrl_l")}, numpad_five))
+        # With no char, numpad vk has no mapping and is not treated as a top-row digit
+        self.assertFalse(match_hotkey(combo, {MockKey("ctrl_l")}, MockKeyCode(vk=0x65)))
+
+    def test_char_only_key_falls_back_to_char(self) -> None:
+        combo = parse_hotkey("Ctrl+V")
+        self.assertTrue(match_hotkey(combo, {MockKey("ctrl_l")}, MockKeyCode(char="v")))
+        self.assertTrue(match_hotkey(combo, {MockKey("ctrl_l")}, MockKeyCode(char="V")))
+
+    def test_function_key_unchanged(self) -> None:
+        combo = parse_hotkey("Ctrl+F5")
+        self.assertTrue(match_hotkey(combo, {MockKey("ctrl_l")}, MockKey("f5")))
+        self.assertTrue(match_hotkey(combo, {MockKey("ctrl_l")}, MockKeyCode(vk=0x74)))
+
+
+class TestAltGrRisk(unittest.TestCase):
+    """is_altgr_risky flags Ctrl+Alt combos on keys a layout may map behind AltGr."""
+
+    def test_ctrl_alt_with_letter_or_digit_is_risky(self) -> None:
+        self.assertTrue(is_altgr_risky(parse_hotkey("Ctrl+Alt+A")))
+        self.assertTrue(is_altgr_risky(parse_hotkey("Ctrl+Alt+1")))
+
+    def test_ctrl_alt_with_printable_punctuation_is_risky(self) -> None:
+        self.assertTrue(is_altgr_risky(HotkeyCombo(frozenset({"ctrl", "alt"}), ";")))
+
+    def test_extra_modifiers_still_risky(self) -> None:
+        self.assertTrue(is_altgr_risky(parse_hotkey("Ctrl+Shift+Alt+Q")))
+
+    def test_ctrl_alt_with_function_or_navigation_key_is_safe(self) -> None:
+        self.assertFalse(is_altgr_risky(parse_hotkey("Ctrl+Alt+F5")))
+        self.assertFalse(is_altgr_risky(parse_hotkey("Ctrl+Alt+Delete")))
+        self.assertFalse(is_altgr_risky(parse_hotkey("Ctrl+Alt+Up")))
+        self.assertFalse(is_altgr_risky(parse_hotkey("Ctrl+Alt+Space")))
+
+    def test_missing_ctrl_or_alt_is_safe(self) -> None:
+        self.assertFalse(is_altgr_risky(parse_hotkey("Ctrl+A")))
+        self.assertFalse(is_altgr_risky(parse_hotkey("Alt+A")))
+        self.assertFalse(is_altgr_risky(parse_hotkey("A")))
+        self.assertFalse(is_altgr_risky(parse_hotkey("Ctrl+Shift+A")))
 
 
 if __name__ == "__main__":
