@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import sys
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -18,6 +19,7 @@ from core.clipboard_queue import ClipboardQueue
 from core.config import AppConfig
 from core.listener import GlobalKeyboardListener, ShortcutHandler
 from core.state import AppState
+from ui.inspector import QueueInspectorWindow
 from ui.notepad import QuickNotepadHUD
 
 
@@ -114,6 +116,26 @@ class TestMainWiring(unittest.TestCase):
 
             mock_purge_idle.assert_called_once_with(10)
             self.assertEqual(purged, 1)
+
+    def test_recording_callback_pauses_and_resumes_the_listener(self) -> None:
+        """Verify the inspector's on_recording_changed, wired as in main(), toggles listener pause."""
+        handler = ShortcutHandler(self.state, self.queue, config=self.mock_config)
+        listener = GlobalKeyboardListener(handler, config=self.mock_config)
+        inspector = QueueInspectorWindow(
+            self.queue,
+            config=self.mock_config,
+            on_recording_changed=listener.set_hotkeys_paused,
+        )
+
+        inspector._on_recording_changed(True)
+        self.assertTrue(listener.hotkeys_paused)
+        inspector._on_recording_changed(False)
+        self.assertFalse(listener.hotkeys_paused)
+
+    def test_main_wires_inspector_recording_to_listener_pause(self) -> None:
+        """main() is not importable headless, so check its source for the wiring."""
+        main_source = (Path(src_dir) / "main.py").read_text(encoding="utf-8")
+        self.assertIn("on_recording_changed=listener.set_hotkeys_paused", main_source)
 
     def test_teardown_cleans_up_notepad_and_config(self) -> None:
         """Verify application exit logic hides notepad and saves config."""

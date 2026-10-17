@@ -13,7 +13,16 @@ src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if src_dir not in sys.path:
     sys.path.insert(0, src_dir)
 
-from core.hotkey_parser import HotkeyCombo, format_hotkey, is_altgr_risky, match_hotkey, parse_hotkey
+from core.hotkey_parser import (
+    HotkeyCombo,
+    format_hotkey,
+    hotkey_parts,
+    is_altgr_risky,
+    key_name_from_vk,
+    match_hotkey,
+    modifier_from_vk,
+    parse_hotkey,
+)
 
 
 class MockKey:
@@ -241,6 +250,82 @@ class TestAltGrRisk(unittest.TestCase):
         self.assertFalse(is_altgr_risky(parse_hotkey("Alt+A")))
         self.assertFalse(is_altgr_risky(parse_hotkey("A")))
         self.assertFalse(is_altgr_risky(parse_hotkey("Ctrl+Shift+A")))
+
+
+class TestVirtualKeyNames(unittest.TestCase):
+    """key_name_from_vk / modifier_from_vk translate Tk keycodes (Windows VK) to canonical names."""
+
+    def test_letters_map_to_lowercase_names(self) -> None:
+        self.assertEqual(key_name_from_vk(0x41), "a")
+        self.assertEqual(key_name_from_vk(0x56), "v")
+        self.assertEqual(key_name_from_vk(0x5A), "z")
+
+    def test_digits_map_to_digit_names(self) -> None:
+        self.assertEqual(key_name_from_vk(0x30), "0")
+        self.assertEqual(key_name_from_vk(0x39), "9")
+
+    def test_function_keys_f1_to_f24(self) -> None:
+        self.assertEqual(key_name_from_vk(0x70), "f1")
+        self.assertEqual(key_name_from_vk(0x73), "f4")
+        self.assertEqual(key_name_from_vk(0x87), "f24")
+
+    def test_navigation_and_named_keys(self) -> None:
+        expected = {
+            0x08: "backspace", 0x09: "tab", 0x0D: "enter", 0x1B: "escape", 0x20: "space",
+            0x21: "pageup", 0x22: "pagedown", 0x23: "end", 0x24: "home",
+            0x25: "left", 0x26: "up", 0x27: "right", 0x28: "down", 0x2D: "insert", 0x2E: "delete",
+        }
+        for vk, name in expected.items():
+            self.assertEqual(key_name_from_vk(vk), name)
+
+    def test_unmapped_and_modifier_vks_return_none(self) -> None:
+        self.assertIsNone(key_name_from_vk(0x10))  # Shift is a modifier, not a key
+        self.assertIsNone(key_name_from_vk(0x14))  # CapsLock is not recordable
+        self.assertIsNone(key_name_from_vk(0xE7))  # VK_PACKET
+        self.assertIsNone(key_name_from_vk(0))
+
+    def test_non_int_input_returns_none(self) -> None:
+        self.assertIsNone(key_name_from_vk("v"))  # type: ignore[arg-type]
+        self.assertIsNone(key_name_from_vk(None))  # type: ignore[arg-type]
+
+    def test_modifier_vks_map_to_modifier_names(self) -> None:
+        self.assertEqual(modifier_from_vk(0x10), "shift")
+        self.assertEqual(modifier_from_vk(0xA1), "shift")
+        self.assertEqual(modifier_from_vk(0x11), "ctrl")
+        self.assertEqual(modifier_from_vk(0xA3), "ctrl")
+        self.assertEqual(modifier_from_vk(0x12), "alt")
+        self.assertEqual(modifier_from_vk(0xA5), "alt")
+        self.assertEqual(modifier_from_vk(0x5B), "win")
+        self.assertEqual(modifier_from_vk(0x5C), "win")
+
+    def test_non_modifier_vk_returns_none_for_modifier(self) -> None:
+        self.assertIsNone(modifier_from_vk(0x56))
+        self.assertIsNone(modifier_from_vk(0x73))
+
+    def test_recorded_combo_round_trips_through_parse(self) -> None:
+        combo = HotkeyCombo(frozenset({"ctrl", "alt"}), key_name_from_vk(0x56))
+        self.assertEqual(parse_hotkey(format_hotkey(combo)), combo)
+        combo = HotkeyCombo(frozenset({"win", "shift"}), key_name_from_vk(0x74))
+        self.assertEqual(parse_hotkey(format_hotkey(combo)), combo)
+
+
+class TestHotkeyParts(unittest.TestCase):
+    """hotkey_parts splits a combo into display tokens, one per key-cap."""
+
+    def test_modifiers_in_canonical_order_then_key(self) -> None:
+        combo = HotkeyCombo(frozenset({"alt", "ctrl"}), "v")
+        self.assertEqual(hotkey_parts(combo), ["Ctrl", "Alt", "V"])
+
+    def test_named_and_function_keys(self) -> None:
+        self.assertEqual(hotkey_parts(parse_hotkey("Shift+F4")), ["Shift", "F4"])
+        self.assertEqual(hotkey_parts(parse_hotkey("Ctrl+PageDown")), ["Ctrl", "PageDown"])
+
+    def test_win_combo_is_displayable(self) -> None:
+        self.assertEqual(hotkey_parts(parse_hotkey("Win+V")), ["Win", "V"])
+
+    def test_joined_parts_match_format_hotkey(self) -> None:
+        combo = parse_hotkey("Ctrl+Shift+Alt+Win+Delete")
+        self.assertEqual("+".join(hotkey_parts(combo)), format_hotkey(combo))
 
 
 if __name__ == "__main__":
