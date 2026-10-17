@@ -8,6 +8,7 @@ import os
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 from typing import Any, List, Optional, Tuple
 from unittest.mock import MagicMock, patch
 
@@ -18,7 +19,7 @@ if src_dir not in sys.path:
 
 from core.clipboard_queue import ClipboardQueue
 from core.config import AppConfig
-from core.hotkey_parser import HotkeyCombo
+from core.hotkey_parser import HotkeyCombo, parse_hotkey
 from core.listener import VK_V, GlobalKeyboardListener, ShortcutHandler
 from core.state import AppState
 
@@ -373,6 +374,134 @@ class TestListenerHotkeys(unittest.TestCase):
 
         self.assertTrue(passed_through)
         self.assertEqual(events, [])
+
+
+class TestHotkeyPause(unittest.TestCase):
+    """While Settings is recording a hotkey, global hotkeys and Ctrl+V interception are suspended."""
+
+    def setUp(self) -> None:
+        self.state = AppState(initial_active=True)
+        self.queue = ClipboardQueue()
+        self.handler = ShortcutHandler(state=self.state, queue=self.queue)
+        self.handler.handle_f4 = MagicMock()
+        self.handler.handle_shift_f4 = MagicMock()
+        self.handler.handle_toggle_notepad = MagicMock()
+        self.listener = GlobalKeyboardListener(handler=self.handler)
+
+    def _press_release(self, key: Any) -> None:
+        self.listener._on_press(key)
+        self.listener._on_release(key)
+
+    def _ctrl_v_filter(self) -> Tuple[bool, MagicMock, MagicMock]:
+        """Runs Ctrl+V through win32_event_filter; returns (result, thread_cls, listener_mock)."""
+        self.queue.push("queued")
+        self.listener._listener = MagicMock()
+        user32 = MagicMock()
+        user32.GetAsyncKeyState.return_value = 0x8000
+        with patch("core.listener.ctypes") as ctypes_mock, patch("core.listener.threading.Thread") as thread_cls:
+            ctypes_mock.windll.user32 = user32
+            result = self.listener.win32_event_filter(256, SimpleNamespace(vkCode=VK_V))
+        return result, thread_cls, self.listener._listener
+
+    def test_not_paused_by_default(self) -> None:
+        self._press_release(MockKey("f4"))
+        self.handler.handle_f4.assert_called_once()
+
+    def test_paused_listener_does_not_fire_hotkeys(self) -> None:
+        self.listener.set_hotkeys_paused(True)
+
+        self._press_release(MockKey("f4"))
+        self._press_release(MockKey("f3"))
+        self.listener._on_press(MockKey("shift_l"))
+        self._press_release(MockKey("f4"))
+        self.listener._on_release(MockKey("shift_l"))
+
+        self.handler.handle_f4.assert_not_called()
+        self.handler.handle_shift_f4.assert_not_called()
+        self.handler.handle_toggle_notepad.assert_not_called()
+
+    def test_paused_listener_still_tracks_pressed_keys(self) -> None:
+        self.listener.set_hotkeys_paused(True)
+        self.listener._on_press(MockKey("shift_l"))
+        self.assertIn(MockKey("shift_l"), self.listener._pressed_keys)
+        self.listener._on_release(MockKey("shift_l"))
+        self.assertNotIn(MockKey("shift_l"), self.listener._pressed_keys)
+
+    def test_unpausing_restores_hotkeys(self) -> None:
+        self.listener.set_hotkeys_paused(True)
+        self._press_release(MockKey("f4"))
+        self.listener.set_hotkeys_paused(False)
+        self._press_release(MockKey("f4"))
+        self.handler.handle_f4.assert_called_once()
+
+    def test_modifier_held_through_unpause_still_combines(self) -> None:
+        self.listener.set_hotkeys_paused(True)
+        self.listener._on_press(MockKey("shift_l"))
+        self.listener.set_hotkeys_paused(False)
+        self._press_release(MockKey("f4"))
+        self.handler.handle_shift_f4.assert_called_once()
+
+    def test_key_held_through_unpause_does_not_fire_on_auto_repeat(self) -> None:
+        """Completing a recording unpauses on key-down; the held key's repeat must not trigger it."""
+        self.listener.set_hotkeys_paused(True)
+        self.listener._on_press(MockKey("f4"))
+        self.listener.set_hotkeys_paused(False)
+
+        self.listener._on_press(MockKey("f4"))  # OS auto-repeat
+        self.handler.handle_f4.assert_not_called()
+
+        self.listener._on_release(MockKey("f4"))
+        self._press_release(MockKey("f4"))  # a fresh press fires again
+        self.handler.handle_f4.assert_called_once()
+
+    def test_auto_repeat_guard_clears_when_release_reports_a_different_char(self) -> None:
+        """Releasing Ctrl before Q reports char 'q' instead of the Ctrl+Q control char '\\x11'.
+        The guard must still clear, or the freshly recorded Ctrl+Q would never fire again."""
+        self.listener._toggle_queue_combo = parse_hotkey("Ctrl+Q")
+        ctrl = MockKey("ctrl_l")
+
+        self.listener.set_hotkeys_paused(True)
+        self.listener._on_press(ctrl)
+        self.listener._on_press(MockKeyCode(char="\x11", vk=0x51))
+        self.listener.set_hotkeys_paused(False)
+        self.listener._on_release(ctrl)
+        self.listener._on_release(MockKeyCode(char="q", vk=0x51))
+
+        self.listener._on_press(ctrl)
+        self.listener._on_press(MockKeyCode(char="\x11", vk=0x51))
+        self.handler.handle_f4.assert_called_once()
+
+    def test_ctrl_v_is_intercepted_when_not_paused(self) -> None:
+        result, thread_cls, listener_mock = self._ctrl_v_filter()
+        self.assertFalse(result)
+        thread_cls.assert_called_once()
+        listener_mock.suppress_event.assert_called_once()
+
+    def test_ctrl_v_passes_through_without_popping_when_paused(self) -> None:
+        self.handler.handle_paste = MagicMock()
+        self.listener.set_hotkeys_paused(True)
+
+        result, thread_cls, listener_mock = self._ctrl_v_filter()
+
+        self.assertTrue(result)
+        thread_cls.assert_not_called()
+        listener_mock.suppress_event.assert_not_called()
+        self.handler.handle_paste.assert_not_called()
+        self.assertEqual(len(self.queue), 1)
+
+    def test_ctrl_v_interception_returns_after_unpause(self) -> None:
+        self.listener.set_hotkeys_paused(True)
+        self.listener.set_hotkeys_paused(False)
+        result, thread_cls, _ = self._ctrl_v_filter()
+        self.assertFalse(result)
+        thread_cls.assert_called_once()
+
+    def test_hotkeys_paused_property_reflects_state(self) -> None:
+        self.assertFalse(self.listener.hotkeys_paused)
+        self.listener.set_hotkeys_paused(True)
+        self.assertTrue(self.listener.hotkeys_paused)
+        self.listener.set_hotkeys_paused(False)
+        self.assertFalse(self.listener.hotkeys_paused)
 
 
 if __name__ == "__main__":

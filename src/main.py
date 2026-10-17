@@ -177,6 +177,7 @@ def main() -> None:
         config=config,
         master=root,
         on_hotkeys_changed=on_hotkeys_changed,
+        on_recording_changed=listener.set_hotkeys_paused,
     )
 
     def run_expiration_manager() -> None:

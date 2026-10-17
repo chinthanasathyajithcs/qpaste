@@ -192,9 +192,10 @@ def parse_hotkey(hotkey_str: str) -> Optional[HotkeyCombo]:
     return HotkeyCombo(modifiers=frozenset(modifiers), key=keys[0])
 
 
-def format_hotkey(combo: HotkeyCombo) -> str:
+def hotkey_parts(combo: HotkeyCombo) -> list[str]:
     """
-    Formats a HotkeyCombo into a standard capitalized string (e.g. 'Ctrl+Shift+N', 'F4').
+    Splits a HotkeyCombo into display tokens in canonical order, e.g. ['Ctrl', 'Alt', 'V'].
+    One token per key-cap in the Settings UI; joined with '+' it is the stored format.
     """
     if not isinstance(combo, HotkeyCombo):
         raise TypeError(f"Expected HotkeyCombo, got {type(combo).__name__}")
@@ -209,8 +210,32 @@ def format_hotkey(combo: HotkeyCombo) -> str:
         parts.append(key.upper())
     else:
         parts.append(key.capitalize())
+    return parts
 
-    return "+".join(parts)
+
+def format_hotkey(combo: HotkeyCombo) -> str:
+    """
+    Formats a HotkeyCombo into a standard capitalized string (e.g. 'Ctrl+Shift+N', 'F4').
+    """
+    return "+".join(hotkey_parts(combo))
+
+
+def key_name_from_vk(vk: int) -> Optional[str]:
+    """
+    Canonical key name for a Windows virtual-key code (letters, digits, F1-F24 and the
+    navigation keys in VK_KEY_MAP), or None for modifiers and unsupported keys.
+    Tk reports this code as event.keycode on Windows.
+    """
+    if not isinstance(vk, int) or isinstance(vk, bool):
+        return None
+    return _normalize_vk(vk)
+
+
+def modifier_from_vk(vk: int) -> Optional[str]:
+    """Canonical modifier name ('ctrl', 'shift', 'alt', 'win') for a virtual-key code, else None."""
+    if not isinstance(vk, int) or isinstance(vk, bool):
+        return None
+    return VK_MOD_MAP.get(vk)
 
 
 def is_altgr_risky(combo: HotkeyCombo) -> bool:
