@@ -31,11 +31,13 @@ class QueueInspectorWindow:
         config: Optional[AppConfig] = None,
         master: Optional[Any] = None,
         on_hotkeys_changed: Optional[Callable[[], None]] = None,
+        on_recording_changed: Optional[Callable[[bool], None]] = None,
     ) -> None:
         self.queue = queue
         self.config: AppConfig = config or AppConfig()
         self.master: Optional[Any] = master
         self.on_hotkeys_changed: Optional[Callable[[], None]] = on_hotkeys_changed
+        self.on_recording_changed: Optional[Callable[[bool], None]] = on_recording_changed
 
         self.root: Optional[Any] = None
         self.listbox: Optional[Any] = None
@@ -154,12 +156,14 @@ class QueueInspectorWindow:
             self.content_container,
             config=self.config,
             on_hotkeys_changed=self._on_hotkeys_changed,
+            on_recording_changed=self._on_recording_changed,
         )
 
         self._switch_to_queue_tab()
         self.refresh()
 
     def _switch_to_queue_tab(self) -> None:
+        self._cancel_hotkey_recording()
         if self.settings_tab and hasattr(self.settings_tab, "pack_forget"):
             self.settings_tab.pack_forget()
         if self.queue_frame and hasattr(self.queue_frame, "pack"):
@@ -183,6 +187,19 @@ class QueueInspectorWindow:
     def _on_hotkeys_changed(self) -> None:
         if self.on_hotkeys_changed:
             self.on_hotkeys_changed()
+
+    def _on_recording_changed(self, recording: bool) -> None:
+        if self.on_recording_changed:
+            self.on_recording_changed(recording)
+
+    def _cancel_hotkey_recording(self) -> None:
+        """Stops any in-progress hotkey recording so global hotkeys resume."""
+        if not self.settings_tab:
+            return
+        try:
+            self.settings_tab.cancel_recording()
+        except Exception:
+            pass
 
     def refresh(self) -> None:
         """Refreshes listbox items and count label from ClipboardQueue."""
@@ -235,6 +252,7 @@ class QueueInspectorWindow:
 
     def hide(self) -> None:
         """Hides the window without destroying process."""
+        self._cancel_hotkey_recording()
         if self.root and hasattr(self.root, "withdraw"):
             try:
                 self.root.withdraw()

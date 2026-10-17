@@ -18,6 +18,7 @@ if src_dir not in sys.path:
 from core.clipboard_queue import ClipboardQueue
 from core.config import AppConfig
 import ui.inspector as inspector_mod
+import ui.hotkey_recorder as recorder_mod
 import ui.settings_tab as settings_tab_mod
 from ui.inspector import QueueInspectorWindow
 
@@ -109,6 +110,7 @@ class TestQueueInspector(unittest.TestCase):
 
         self.mock_config = MagicMock(spec=AppConfig)
         self.hotkeys_reloaded = False
+        self.recording_states: list[bool] = []
 
         # Mock Tkinter module
         self.mock_tk = MagicMock()
@@ -140,16 +142,20 @@ class TestQueueInspector(unittest.TestCase):
         self.orig_settings_tk = settings_tab_mod.tk
         inspector_mod.tk = self.mock_tk
         settings_tab_mod.tk = self.mock_tk
+        self.orig_recorder_tk = recorder_mod.tk
+        recorder_mod.tk = self.mock_tk
 
         self.inspector = QueueInspectorWindow(
             queue=self.queue,
             config=self.mock_config,
             on_hotkeys_changed=self._on_hotkeys_changed,
+            on_recording_changed=self.recording_states.append,
         )
 
     def tearDown(self) -> None:
         inspector_mod.tk = self.orig_tk
         settings_tab_mod.tk = self.orig_settings_tk
+        recorder_mod.tk = self.orig_recorder_tk
 
     def _on_hotkeys_changed(self) -> None:
         self.hotkeys_reloaded = True
@@ -230,3 +236,42 @@ class TestQueueInspector(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_on_recording_changed_forwarding(self) -> None:
+        self.inspector._on_recording_changed(True)
+        self.inspector._on_recording_changed(False)
+        self.assertEqual(self.recording_states, [True, False])
+
+    def test_on_recording_changed_without_callback_is_safe(self) -> None:
+        inspector = QueueInspectorWindow(queue=self.queue, config=self.mock_config)
+        inspector._on_recording_changed(True)
+
+    def test_settings_tab_recording_reaches_inspector_callback(self) -> None:
+        self.inspector._build_gui()
+        self.inspector.settings_tab.hotkey_fields["toggle_queue"].start_recording()
+        self.assertEqual(self.recording_states, [True])
+
+    def test_switching_tabs_cancels_recording(self) -> None:
+        self.inspector._build_gui()
+        self.inspector._switch_to_settings_tab()
+        field = self.inspector.settings_tab.hotkey_fields["toggle_queue"]
+        field.start_recording()
+
+        self.inspector._switch_to_queue_tab()
+
+        self.assertFalse(field.recording)
+        self.assertEqual(self.recording_states, [True, False])
+
+    def test_closing_the_window_cancels_recording(self) -> None:
+        self.inspector._build_gui()
+        field = self.inspector.settings_tab.hotkey_fields["clear_queue"]
+        field.start_recording()
+
+        self.inspector.hide()
+
+        self.assertFalse(field.recording)
+        self.assertEqual(self.recording_states, [True, False])
+
+    def test_hide_before_gui_is_built_is_safe(self) -> None:
+        self.inspector.hide()
+        self.assertEqual(self.recording_states, [])

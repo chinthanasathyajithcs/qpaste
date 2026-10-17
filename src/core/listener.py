@@ -194,6 +194,14 @@ class ShortcutHandler:
         return False
 
 
+def _held_key_id(key: Any) -> Any:
+    """Stable identity for a physical key across press and release.
+    A KeyCode's char can differ between the two (Ctrl+Q presses as '\\x11' but releases
+    as 'q' once Ctrl is up), so keys with a virtual-key code are identified by it."""
+    vk = getattr(key, "vk", None)
+    return ("vk", vk) if isinstance(vk, int) else key
+
+
 class GlobalKeyboardListener:
     """
     Low-level global keyboard listener using pynput.
@@ -210,6 +218,10 @@ class GlobalKeyboardListener:
         self.config = config
         self._listener: Optional[Any] = None
         self._pressed_keys: Set[Any] = set()
+        self._hotkeys_paused = False
+        # Keys pressed while paused. They stay inert until released so that the OS
+        # auto-repeat of a key still held when recording ends cannot fire its hotkey.
+        self._keys_held_while_paused: Set[Any] = set()
         self._toggle_queue_combo: Optional[HotkeyCombo] = None
         self._clear_queue_combo: Optional[HotkeyCombo] = None
         self._toggle_notepad_combo: Optional[HotkeyCombo] = None
@@ -240,11 +252,28 @@ class GlobalKeyboardListener:
         self._clear_queue_combo = parse_hotkey(str(raw_clear)) or parse_hotkey("Shift+F4")
         self._toggle_notepad_combo = parse_hotkey(str(raw_notepad)) or parse_hotkey("F3")
 
+    @property
+    def hotkeys_paused(self) -> bool:
+        return self._hotkeys_paused
+
+    def set_hotkeys_paused(self, paused: bool) -> None:
+        """
+        Suspends (or resumes) hotkey actions and Ctrl+V interception while Settings records
+        a new hotkey. Pressed keys are still tracked so modifiers held across the switch stay correct.
+        """
+        self._hotkeys_paused = bool(paused)
+
     def _on_press(self, key: Any) -> None:
         """Tracks key press and handles matching shortcuts."""
         if key is None:
             return
         self._pressed_keys.add(key)
+
+        if self._hotkeys_paused:
+            self._keys_held_while_paused.add(_held_key_id(key))
+            return
+        if _held_key_id(key) in self._keys_held_while_paused:
+            return
 
         if self._toggle_notepad_combo and match_hotkey(self._toggle_notepad_combo, self._pressed_keys, key):
             self.handler.handle_toggle_notepad()
@@ -261,10 +290,14 @@ class GlobalKeyboardListener:
     def _on_release(self, key: Any) -> None:
         """Tracks key releases to maintain pressed key state."""
         self._pressed_keys.discard(key)
+        self._keys_held_while_paused.discard(_held_key_id(key))
 
     def win32_event_filter(self, msg, data):
         """Low-level hook filter. Suppresses native Ctrl+V when the queue has items,
-        swaps the clipboard in a background thread, and injects a virtual paste."""
+        swaps the clipboard in a background thread, and injects a virtual paste.
+        While hotkeys are paused every key, Ctrl+V included, passes through natively."""
+        if self._hotkeys_paused:
+            return True
         # 256 = WM_KEYDOWN, 260 = WM_SYSKEYDOWN
         if msg in (256, 260) and data.vkCode == VK_V:
             ctrl_down = (ctypes.windll.user32.GetAsyncKeyState(0x11) & 0x8000) != 0
