@@ -159,15 +159,18 @@ class ShortcutHandler:
                 if self.ignore_consecutive_duplicates and elapsed < self.duplicate_window_sec:
                     return
 
+            len_before = len(self.queue)
             self.queue.push(text)
             self._last_copied_text = text
             self._last_copied_time = now
             q_len = len(self.queue)
+            # At capacity the oldest item is evicted, so the count does not change and cannot roll
+            count_type = "copy_count" if q_len != len_before else "count_static"
 
         if self.on_update_callback:
             self.on_update_callback()
         if self.on_notify_callback:
-            self.on_notify_callback(str(q_len), "copy_count")
+            self.on_notify_callback(str(q_len), count_type)
 
     def handle_paste(self) -> bool:
         """
@@ -290,6 +293,9 @@ class GlobalKeyboardListener:
                     self._controller.release(v_key)
             finally:
                 self._simulating_v = False
+            # Notify only after the injection, with the length left after the pop
+            if self.handler.on_notify_callback:
+                self.handler.on_notify_callback(str(len(self.handler.queue)), "paste_count")
 
     def start(self) -> None:
         """Starts the keyboard listener thread."""

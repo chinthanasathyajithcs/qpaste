@@ -290,6 +290,77 @@ class TestListenerHotkeys(unittest.TestCase):
         controller.press.assert_called_once_with(v_key)
         controller.release.assert_called_once_with(v_key)
 
+    def _paste_harness(self, item_count: int) -> Tuple[GlobalKeyboardListener, List[Any]]:
+        """Builds a listener over a real queue with an event log shared by notifications and key injection."""
+        events: List[Any] = []
+        for index in range(item_count):
+            self.queue.push(f"Item {index}")
+        handler = ShortcutHandler(
+            state=self.state,
+            queue=self.queue,
+            on_notify_callback=lambda msg, toast_type: events.append(("notify", msg, toast_type)),
+        )
+        listener = GlobalKeyboardListener(handler=handler)
+        controller = MagicMock()
+        controller.press.side_effect = lambda _key: events.append("press")
+        controller.release.side_effect = lambda _key: events.append("release")
+        listener._controller = controller
+        return listener, events
+
+    def test_async_paste_notifies_paste_count_after_injection_with_post_pop_length(self) -> None:
+        """Given 3 queued items, When a queued paste is injected, Then paste_count 2 is sent only after the V press and release."""
+        listener, events = self._paste_harness(3)
+
+        with patch("core.listener.keyboard", MagicMock()), patch("core.listener.safe_copy"):
+            listener._async_paste()
+
+        self.assertEqual(events, ["press", "release", ("notify", "2", "paste_count")])
+
+    def test_async_paste_of_last_item_notifies_zero(self) -> None:
+        """Given 1 queued item, When it is pasted, Then paste_count 0 is sent so the toast shows the queue is empty."""
+        listener, events = self._paste_harness(1)
+
+        with patch("core.listener.keyboard", MagicMock()), patch("core.listener.safe_copy"):
+            listener._async_paste()
+
+        self.assertEqual(events[-1], ("notify", "0", "paste_count"))
+
+    def test_async_paste_without_queued_item_sends_no_notification(self) -> None:
+        """Given an empty queue, When _async_paste runs, Then nothing is injected and no paste_count is sent."""
+        listener, events = self._paste_harness(0)
+
+        with patch("core.listener.keyboard", MagicMock()):
+            listener._async_paste()
+
+        self.assertEqual(events, [])
+
+    def test_passthrough_ctrl_v_sends_no_paste_count(self) -> None:
+        """Given an empty queue, When Ctrl+V is pressed, Then the filter passes it through with no notification."""
+        listener, events = self._paste_harness(0)
+        key_event = MagicMock(vkCode=VK_V)
+        windll = MagicMock()
+        windll.user32.GetAsyncKeyState.return_value = 0x8000
+
+        with patch("core.listener.ctypes.windll", windll, create=True):
+            passed_through = listener.win32_event_filter(256, key_event)
+
+        self.assertTrue(passed_through)
+        self.assertEqual(events, [])
+
+    def test_passthrough_ctrl_v_while_queue_off_sends_no_paste_count(self) -> None:
+        """Given queue mode OFF with items, When Ctrl+V is pressed, Then it passes through with no notification."""
+        listener, events = self._paste_harness(2)
+        self.state.toggle()
+        key_event = MagicMock(vkCode=VK_V)
+        windll = MagicMock()
+        windll.user32.GetAsyncKeyState.return_value = 0x8000
+
+        with patch("core.listener.ctypes.windll", windll, create=True):
+            passed_through = listener.win32_event_filter(256, key_event)
+
+        self.assertTrue(passed_through)
+        self.assertEqual(events, [])
+
 
 if __name__ == "__main__":
     unittest.main()
