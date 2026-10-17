@@ -6,6 +6,7 @@ virtual-key-first matcher in core.hotkey_parser.
 """
 from __future__ import annotations
 
+import ctypes
 from typing import Any, Callable, List, Optional
 
 try:
@@ -43,6 +44,22 @@ def widget_is_within(widget: Any, container: Any) -> bool:
         return False
     path, container_path = str(widget), str(container)
     return path == container_path or path.startswith(container_path + ".")
+
+
+def _held_modifiers() -> frozenset[str]:
+    """Read modifiers pressed before Tk began receiving recording events."""
+    try:
+        key_state = ctypes.windll.user32.GetAsyncKeyState
+        return frozenset(
+            modifier
+            for key, modifier in (
+                (0x10, "shift"), (0x11, "ctrl"), (0x12, "alt"),
+                (0x5B, "win"), (0x5C, "win"),
+            )
+            if key_state(key) & 0x8000
+        )
+    except (AttributeError, OSError):
+        return frozenset()
 
 
 class HotkeyRecorderField:
@@ -106,7 +123,7 @@ class HotkeyRecorderField:
         if self._recording:
             return
         self._recording = True
-        self._held = frozenset()
+        self._held = _held_modifiers()
         try:
             if self._on_start:
                 self._on_start()
