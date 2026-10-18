@@ -19,8 +19,7 @@ A clipboard queue for Windows. Copy several things in a row, then paste them bac
 
 <br />
 
-<!-- launch-video -->
-![QPaste demo](assets/Animation.gif)
+https://github.com/user-attachments/assets/17b08c0d-9150-4a40-9a42-fcbbfdd1282c
 
 Free &nbsp;·&nbsp; No account &nbsp;·&nbsp; Works offline &nbsp;·&nbsp; Open source
 
