@@ -1,8 +1,8 @@
-; Inno Setup Script for QPaste v1.1.0
+; Inno Setup Script for QPaste v1.2.0
 ; Sequential Clipboard Manager for Windows
 
 #define MyAppName "QPaste"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "QPaste Project"
 #define MyAppURL "https://github.com/chinthanasathyajithcs/qpaste"
 #define MyAppExeName "QPaste.exe"
@@ -16,7 +16,7 @@ AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={localappdata}\Programs\{#MyAppName}
-OutputBaseFilename=QPaste_Setup_v1.1.0
+OutputBaseFilename=QPaste_Setup_v1.2.0
 Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=lowest

@@ -72,3 +72,9 @@ $RECYCLE.BIN/
 .DS_Store
 .AppleDouble
 .LSOverride
+
+# Local video work (reference clips, renders)
+newversionvideo/
+
+# Windows download metadata (WSL copies)
+*:Zone.Identifier
