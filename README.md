@@ -15,7 +15,7 @@ A clipboard queue for Windows. Copy several things in a row, then paste them bac
 [![Tests](https://img.shields.io/badge/Tests-336%20Passed-10B981?style=flat-square)](src/tests)
 [![License](https://img.shields.io/badge/License-MIT-F59E0B?style=flat-square)](LICENSE)
 
-[**Download**](https://github.com/chinthanasathyajithcs/qpaste/releases/latest) &nbsp;·&nbsp; [**What's New**](#whats-new-in-v120) &nbsp;·&nbsp; [**Report a Bug**](https://github.com/chinthanasathyajithcs/qpaste/issues)
+[**Download**](https://github.com/chinthanasathyajithcs/qpaste/releases/latest) &nbsp;·&nbsp; [**What's New**](#whats-new-in-v120) &nbsp;·&nbsp; [**Report a Bug**](https://github.com/chinthanasathyajithcs/qpaste/issues) &nbsp;·&nbsp; [**Support**](https://ko-fi.com/chinthanasathyajith)
 
 <br />
 
@@ -169,6 +169,10 @@ qpaste/
 ## Contributing
 
 Bug reports and pull requests are welcome. Issues labelled [good first issue](https://github.com/chinthanasathyajithcs/qpaste/labels/good%20first%20issue) are a good place to start. If you use a non-US keyboard layout, reports on how QPaste behaves with it are especially helpful.
+
+## Support
+
+QPaste is free and always will be. If it saves you time, you can [buy me a coffee on Ko-fi](https://ko-fi.com/chinthanasathyajith).
 
 ## License
 
