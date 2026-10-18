@@ -12,7 +12,7 @@ A clipboard queue for Windows. Copy several things in a row, then paste them bac
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Release](https://img.shields.io/badge/Release-v1.2.0-2563EB?style=flat-square&logo=github&logoColor=white)](https://github.com/chinthanasathyajithcs/qpaste/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/chinthanasathyajithcs/qpaste/total?style=flat-square&logo=github&color=blue)](https://github.com/chinthanasathyajithcs/qpaste/releases)
-[![Tests](https://img.shields.io/badge/Tests-332%20Passed-10B981?style=flat-square)](src/tests)
+[![Tests](https://img.shields.io/badge/Tests-336%20Passed-10B981?style=flat-square)](src/tests)
 [![License](https://img.shields.io/badge/License-MIT-F59E0B?style=flat-square)](LICENSE)
 
 [**Download**](https://github.com/chinthanasathyajithcs/qpaste/releases/latest) &nbsp;·&nbsp; [**What's New**](#whats-new-in-v120) &nbsp;·&nbsp; [**Report a Bug**](https://github.com/chinthanasathyajithcs/qpaste/issues)
@@ -161,7 +161,7 @@ qpaste/
 │   │   ├── notepad.py           Quick Notepad overlay
 │   │   ├── settings_tab.py      Hotkey and auto-clear settings
 │   │   └── toast.py             Focus-free toast overlay
-│   ├── tests/                   332 unit and integration tests
+│   ├── tests/                   336 unit and integration tests
 │   └── main.py                  Entry point and tray icon
 └── qpaste.spec              PyInstaller build spec
 ```
