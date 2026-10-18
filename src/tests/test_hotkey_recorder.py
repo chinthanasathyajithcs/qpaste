@@ -9,7 +9,7 @@ import os
 import sys
 import unittest
 from typing import List, Optional
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if src_dir not in sys.path:
@@ -26,6 +26,12 @@ VK_ESC, VK_F4, VK_Q, VK_CAPSLOCK = 0x1B, 0x73, 0x51, 0x14
 
 class TestHotkeyRecorderField(unittest.TestCase):
     def setUp(self) -> None:
+        self.key_state = MagicMock(return_value=0)
+        windll = MagicMock()
+        windll.user32.GetAsyncKeyState = self.key_state
+        patcher = patch("ui.hotkey_recorder.ctypes.windll", windll, create=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.orig_tk = recorder_mod.tk
         recorder_mod.tk = make_mock_tk()
         self.parent = MockWidget()
@@ -107,6 +113,33 @@ class TestHotkeyRecorderField(unittest.TestCase):
         self.field.start_recording()
         self.field.start_recording()
         self.assertEqual(self.events, ["start"])
+
+    def test_modifier_held_before_recording_is_displayed_and_submitted(self) -> None:
+        self.key_state.side_effect = lambda key: 0x8000 if key == VK_CTRL else 0
+        self.field.start_recording()
+
+        self.assertEqual(self.field.displayed_tokens, ["Ctrl"])
+        self._press(VK_Q)
+        self.assertEqual(self.field.combo, parse_hotkey("Ctrl+Q"))
+
+    def test_both_windows_keys_seed_the_same_modifier(self) -> None:
+        for key in (0x5B, 0x5C):
+            with self.subTest(key=key):
+                self.key_state.side_effect = lambda vk, held=key: 0x8000 if vk == held else 0
+                self.field.start_recording()
+                self.assertEqual(self.field.displayed_tokens, ["Win"])
+                self.field.cancel()
+
+    def test_previously_pressed_modifier_is_not_treated_as_held(self) -> None:
+        self.key_state.return_value = 1
+        self.field.start_recording()
+        self.assertEqual(self.field.displayed_tokens, [])
+
+    def test_key_state_unavailable_still_allows_recording(self) -> None:
+        self.key_state.side_effect = OSError("key state unavailable")
+        self.field.start_recording()
+        self.assertTrue(self.field.recording)
+        self.assertEqual(self.field.displayed_tokens, [])
 
     def test_clicking_the_field_starts_recording(self) -> None:
         self.field.frame._binds["<Button-1>"](key_event(0))
